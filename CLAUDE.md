@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync
 
 # 개발 서버 실행 (핫리로드)
-uv run uvicorn abuddy.main:app --reload --app-dir src
+uv run uvicorn abuddy.main:app --reload --app-dir src --port 8002
 
 # Lint
 uv run ruff check src/

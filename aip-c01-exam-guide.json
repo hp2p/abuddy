@@ -1,0 +1,1324 @@
+{
+  "exam": {
+    "code": "AIP-C01",
+    "title": "AWS Certified Generative AI Developer - Professional",
+    "released": "2025-11",
+    "questions": {
+      "total": 75,
+      "scored": 65,
+      "unscored": 10
+    },
+    "score_range": { "min": 100, "max": 1000, "passing": 750 },
+    "scoring_model": "Compensatory",
+    "question_types": ["Multiple Choice", "Multiple Response"],
+    "target_candidate": [
+      "2+ years building production-grade applications on AWS or open-source technologies",
+      "General AI/ML or data engineering experience",
+      "1+ year hands-on experience implementing GenAI solutions"
+    ],
+    "validated_competencies": [
+      "Design and implement solutions using vector stores, RAG, knowledge bases, and GenAI architectures",
+      "Integrate FMs into applications and business workflows",
+      "Apply prompt engineering and management techniques",
+      "Implement agentic AI solutions",
+      "Optimize GenAI applications for cost, performance, and business value",
+      "Implement security, governance, and Responsible AI practices",
+      "Troubleshoot, monitor, and optimize GenAI applications",
+      "Evaluate FMs for quality and responsibility"
+    ],
+    "out_of_scope": [
+      "Model development and training",
+      "Advanced ML techniques",
+      "Data engineering and feature engineering"
+    ]
+  },
+  "domains": [
+    {
+      "id": 1,
+      "title": "Foundation Model Integration, Data Management, and Compliance",
+      "weight_pct": 31,
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/ai-professional-01-domain1.html",
+      "tasks": [
+        {
+          "id": "1.1",
+          "title": "Analyze requirements and design GenAI solutions",
+          "skills": [
+            {
+              "id": "1.1.1",
+              "description": "Create comprehensive architectural designs that align with specific business needs and technical constraints.",
+              "techniques": [
+                "Using appropriate FMs",
+                "Using appropriate integration patterns",
+                "Using appropriate deployment strategies"
+              ]
+            },
+            {
+              "id": "1.1.2",
+              "description": "Develop technical proof-of-concept implementations to validate feasibility, performance characteristics, and business value before proceeding to full-scale deployment.",
+              "techniques": [
+                "Using Amazon Bedrock"
+              ]
+            },
+            {
+              "id": "1.1.3",
+              "description": "Create standardized technical components to ensure consistent implementation across multiple deployment scenarios.",
+              "techniques": [
+                "Using the AWS Well-Architected Framework",
+                "Using AWS WA Tool Generative AI Lens"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1.2",
+          "title": "Select and configure FMs",
+          "skills": [
+            {
+              "id": "1.2.1",
+              "description": "Assess and choose FMs to ensure optimal alignment with specific business use cases and technical requirements.",
+              "techniques": [
+                "Performance benchmarks",
+                "Capability analysis",
+                "Limitation evaluation"
+              ]
+            },
+            {
+              "id": "1.2.2",
+              "description": "Create flexible architecture patterns to enable dynamic model selection and provider switching without requiring code modifications.",
+              "techniques": [
+                "Using AWS Lambda",
+                "Using Amazon API Gateway",
+                "Using AWS AppConfig"
+              ]
+            },
+            {
+              "id": "1.2.3",
+              "description": "Design resilient AI systems to ensure continuous operation during service disruptions.",
+              "techniques": [
+                "Using AWS Step Functions circuit breaker patterns",
+                "Using Amazon Bedrock Cross-Region Inference for models with limited regional availability",
+                "Cross-Region model deployment",
+                "Graceful degradation strategies"
+              ]
+            },
+            {
+              "id": "1.2.4",
+              "description": "Implement FM customization deployment and lifecycle management.",
+              "techniques": [
+                "Using Amazon SageMaker AI to deploy domain-specific fine-tuned models",
+                "Parameter-efficient adaptation techniques such as LoRA and adapters for model deployment",
+                "SageMaker Model Registry for versioning and deploying customized models",
+                "Automated deployment pipelines to update models",
+                "Rollback strategies for failed deployments",
+                "Lifecycle management to retire and replace models"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1.3",
+          "title": "Implement data validation and processing pipelines for FM consumption",
+          "skills": [
+            {
+              "id": "1.3.1",
+              "description": "Create comprehensive data validation workflows to ensure data meets quality standards for FM consumption.",
+              "techniques": [
+                "Using AWS Glue Data Quality",
+                "Using SageMaker Data Wrangler",
+                "Using custom Lambda functions",
+                "Using Amazon CloudWatch metrics"
+              ]
+            },
+            {
+              "id": "1.3.2",
+              "description": "Create data processing workflows to handle complex data types including text, image, audio, and tabular data with specialized processing requirements for FM consumption.",
+              "techniques": [
+                "Using Amazon Bedrock multimodal models",
+                "Using SageMaker Processing",
+                "Using AWS Transcribe",
+                "Advanced multimodal pipeline architectures"
+              ]
+            },
+            {
+              "id": "1.3.3",
+              "description": "Format input data for FM inference according to model-specific requirements.",
+              "techniques": [
+                "JSON formatting for Amazon Bedrock API requests",
+                "Structured data preparation for SageMaker AI endpoints",
+                "Conversation formatting for dialog-based applications"
+              ]
+            },
+            {
+              "id": "1.3.4",
+              "description": "Enhance input data quality to improve FM response quality and consistency.",
+              "techniques": [
+                "Using Amazon Bedrock to reformat text",
+                "Using Amazon Comprehend to extract entities",
+                "Using Lambda functions to normalize data"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1.4",
+          "title": "Design and implement vector store solutions",
+          "skills": [
+            {
+              "id": "1.4.1",
+              "description": "Create advanced vector database architectures specifically for FM augmentation to enable efficient semantic retrieval beyond traditional search capabilities.",
+              "techniques": [
+                "Using Amazon Bedrock Knowledge Bases for hierarchical organization",
+                "Using Amazon OpenSearch Service with the Neural plugin for Amazon Bedrock integration for topic-based segmentation",
+                "Using Amazon RDS with Amazon S3 document repositories",
+                "Using Amazon DynamoDB with vector databases for metadata and embeddings"
+              ]
+            },
+            {
+              "id": "1.4.2",
+              "description": "Develop comprehensive metadata frameworks to improve search precision and context awareness for FM interactions.",
+              "techniques": [
+                "Using S3 object metadata for document timestamps",
+                "Custom attributes for authorship information",
+                "Tagging systems for domain classification"
+              ]
+            },
+            {
+              "id": "1.4.3",
+              "description": "Implement high-performance vector database architectures to optimize semantic search performance at scale for FM retrieval.",
+              "techniques": [
+                "OpenSearch sharding strategies",
+                "Multi-index approaches for specialized domains",
+                "Hierarchical indexing techniques"
+              ]
+            },
+            {
+              "id": "1.4.4",
+              "description": "Use AWS services to create integration components to connect with resources.",
+              "techniques": [
+                "Document management systems",
+                "Knowledge bases",
+                "Internal wikis for comprehensive data integration in GenAI applications"
+              ]
+            },
+            {
+              "id": "1.4.5",
+              "description": "Design and deploy data maintenance systems to ensure that vector stores contain current and accurate information for FM augmentation.",
+              "techniques": [
+                "Incremental update mechanisms",
+                "Real-time change detection systems",
+                "Automated synchronization workflows",
+                "Scheduled refresh pipelines"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1.5",
+          "title": "Design retrieval mechanisms for FM augmentation",
+          "skills": [
+            {
+              "id": "1.5.1",
+              "description": "Develop effective document segmentation approaches to optimize retrieval performance for FM context augmentation.",
+              "techniques": [
+                "Using Amazon Bedrock chunking capabilities",
+                "Using Lambda functions to implement fixed-size chunking",
+                "Custom processing for hierarchical chunking based on content structure"
+              ]
+            },
+            {
+              "id": "1.5.2",
+              "description": "Select and configure optimal embedding solutions to create efficient vector representations for semantic search.",
+              "techniques": [
+                "Using Amazon Titan embeddings based on dimensionality and domain fit",
+                "Evaluating performance characteristics of Amazon Bedrock embedding models",
+                "Using Lambda functions to batch generate embeddings"
+              ]
+            },
+            {
+              "id": "1.5.3",
+              "description": "Deploy and configure vector search solutions to enable semantic search capabilities for FM augmentation.",
+              "techniques": [
+                "Using OpenSearch Service with vector search capabilities",
+                "Using Amazon Aurora with the pgvector extension",
+                "Using Amazon Bedrock Knowledge Bases with managed vector store functionality"
+              ]
+            },
+            {
+              "id": "1.5.4",
+              "description": "Create advanced search architectures to improve the relevance and accuracy of retrieved information for FM context.",
+              "techniques": [
+                "Using OpenSearch for semantic search",
+                "Hybrid search that combines keywords and vectors",
+                "Using Amazon Bedrock reranker models"
+              ]
+            },
+            {
+              "id": "1.5.5",
+              "description": "Develop sophisticated query handling systems to improve retrieval effectiveness and result quality for FM augmentation.",
+              "techniques": [
+                "Using Amazon Bedrock for query expansion",
+                "Using Lambda functions for query decomposition",
+                "Using Step Functions for query transformation"
+              ]
+            },
+            {
+              "id": "1.5.6",
+              "description": "Create consistent access mechanisms to enable seamless integration with FMs.",
+              "techniques": [
+                "Function calling interfaces for vector search",
+                "Model Context Protocol (MCP) clients for vector queries",
+                "Standardized API patterns for retrieval augmentation"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1.6",
+          "title": "Implement prompt engineering strategies and governance for FM interactions",
+          "skills": [
+            {
+              "id": "1.6.1",
+              "description": "Create effective model instruction frameworks to control FM behavior and outputs.",
+              "techniques": [
+                "Using Amazon Bedrock Prompt Management to enforce role definitions",
+                "Using Amazon Bedrock Guardrails to enforce responsible AI guidelines",
+                "Template configurations to format responses"
+              ]
+            },
+            {
+              "id": "1.6.2",
+              "description": "Build interactive AI systems to maintain context and improve user interactions with FMs.",
+              "techniques": [
+                "Using Step Functions for clarification workflows",
+                "Using Amazon Comprehend for intent recognition",
+                "Using DynamoDB for conversation history storage"
+              ]
+            },
+            {
+              "id": "1.6.3",
+              "description": "Implement comprehensive prompt management and governance systems to ensure consistency and oversight of FM operations.",
+              "techniques": [
+                "Using Amazon Bedrock Prompt Management to create parameterized templates and approval workflows",
+                "Using Amazon S3 to store template repositories",
+                "Using AWS CloudTrail to track usage",
+                "Using Amazon CloudWatch Logs to log access"
+              ]
+            },
+            {
+              "id": "1.6.4",
+              "description": "Develop quality assurance systems to ensure prompt effectiveness and reliability for FMs.",
+              "techniques": [
+                "Using Lambda functions to verify expected output",
+                "Using Step Functions to test edge cases",
+                "Using CloudWatch to test prompt regression"
+              ]
+            },
+            {
+              "id": "1.6.5",
+              "description": "Enhance FM performance to refine prompts iteratively and improve response quality beyond basic prompting techniques.",
+              "techniques": [
+                "Structured input components",
+                "Output format specifications",
+                "Chain-of-thought instruction patterns",
+                "Feedback loops"
+              ]
+            },
+            {
+              "id": "1.6.6",
+              "description": "Design complex prompt systems to handle sophisticated tasks with FMs.",
+              "techniques": [
+                "Using Amazon Bedrock Prompt Flows for sequential prompt chains",
+                "Conditional branching based on model responses",
+                "Reusable prompt components",
+                "Integrated pre-processing and post-processing steps"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Implementation and Integration",
+      "weight_pct": 26,
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/ai-professional-01-domain2.html",
+      "tasks": [
+        {
+          "id": "2.1",
+          "title": "Implement agentic AI solutions and tool integrations",
+          "skills": [
+            {
+              "id": "2.1.1",
+              "description": "Develop intelligent autonomous systems with appropriate memory and state management capabilities.",
+              "techniques": [
+                "Using Strands Agents and AWS Agent Squad for multi-agent systems",
+                "Using MCP for agent-tool interactions"
+              ]
+            },
+            {
+              "id": "2.1.2",
+              "description": "Create advanced problem-solving systems to give FMs the ability to break down and solve complex problems by following structured reasoning steps.",
+              "techniques": [
+                "Using Step Functions to implement ReAct patterns",
+                "Using chain-of-thought reasoning approaches"
+              ]
+            },
+            {
+              "id": "2.1.3",
+              "description": "Develop safeguarded AI workflows to ensure controlled FM behavior.",
+              "techniques": [
+                "Using Step Functions to implement stopping conditions",
+                "Using Lambda functions to implement timeout mechanisms",
+                "Using IAM policies to enforce resource boundaries",
+                "Using circuit breakers to mitigate failures"
+              ]
+            },
+            {
+              "id": "2.1.4",
+              "description": "Create sophisticated model coordination systems to optimize performance across multiple capabilities.",
+              "techniques": [
+                "Using specialized FMs to perform complex tasks",
+                "Using custom aggregation logic for model ensembles",
+                "Using model selection frameworks"
+              ]
+            },
+            {
+              "id": "2.1.5",
+              "description": "Develop collaborative AI systems to enhance FM capabilities with human expertise.",
+              "techniques": [
+                "Using Step Functions to orchestrate review and approval processes",
+                "Using API Gateway to implement feedback collection mechanisms",
+                "Using human augmentation patterns"
+              ]
+            },
+            {
+              "id": "2.1.6",
+              "description": "Implement intelligent tool integrations to extend FM capabilities and to ensure reliable tool operations.",
+              "techniques": [
+                "Using the Strands API to implement custom behaviors",
+                "Using standardized function definitions",
+                "Using Lambda functions to implement error handling and parameter validation"
+              ]
+            },
+            {
+              "id": "2.1.7",
+              "description": "Develop model extension frameworks to enhance FM capabilities.",
+              "techniques": [
+                "Using Lambda functions to implement stateless MCP servers that provide lightweight tool access",
+                "Using Amazon ECS to implement MCP servers that provide complex tools",
+                "Using MCP client libraries to ensure consistent access patterns"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2.2",
+          "title": "Implement model deployment strategies",
+          "skills": [
+            {
+              "id": "2.2.1",
+              "description": "Deploy FMs based on specific application needs and performance requirements.",
+              "techniques": [
+                "Using Lambda functions for on-demand invocation",
+                "Using Amazon Bedrock provisioned throughput configurations",
+                "Using SageMaker AI endpoints to implement hybrid solutions"
+              ]
+            },
+            {
+              "id": "2.2.2",
+              "description": "Deploy FM solutions by addressing unique challenges of LLMs that differ from traditional ML deployments.",
+              "techniques": [
+                "Implementing container-based deployment patterns optimized for memory requirements",
+                "Implementing container-based deployment patterns optimized for GPU utilization",
+                "Implementing container-based deployment patterns optimized for token processing capacity",
+                "Following specialized model loading strategies"
+              ]
+            },
+            {
+              "id": "2.2.3",
+              "description": "Develop optimized FM deployment approaches to balance performance and resource requirements for GenAI workloads.",
+              "techniques": [
+                "Selecting appropriate models",
+                "Using smaller pre-trained models for specific tasks",
+                "Using API-based model cascading to perform routine queries"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2.3",
+          "title": "Design and implement enterprise integration architectures",
+          "skills": [
+            {
+              "id": "2.3.1",
+              "description": "Create enterprise connectivity solutions to seamlessly incorporate FM capabilities into existing enterprise environments.",
+              "techniques": [
+                "Using API-based integrations with legacy systems",
+                "Using event-driven architectures to implement loose coupling",
+                "Using data synchronization patterns"
+              ]
+            },
+            {
+              "id": "2.3.2",
+              "description": "Develop integrated AI capabilities to enhance existing applications with GenAI functionality.",
+              "techniques": [
+                "Using API Gateway to implement microservice integrations",
+                "Using Lambda functions for webhook handlers",
+                "Using Amazon EventBridge to implement event-driven integrations"
+              ]
+            },
+            {
+              "id": "2.3.3",
+              "description": "Create secure access frameworks to ensure appropriate security controls.",
+              "techniques": [
+                "Using identity federation between FM services and enterprise systems",
+                "Using role-based access control for model and data access",
+                "Using least privilege API access to FMs"
+              ]
+            },
+            {
+              "id": "2.3.4",
+              "description": "Develop cross-environment AI solutions to ensure data compliance across jurisdictions while enabling FM access.",
+              "techniques": [
+                "Using AWS Outposts for on-premises data integration",
+                "Using AWS Wavelength to perform edge deployments",
+                "Using secure routing between cloud and on-premises resources"
+              ]
+            },
+            {
+              "id": "2.3.5",
+              "description": "Implement CI/CD pipelines and GenAI gateway architectures to implement secure and compliant consumption patterns in enterprise environments.",
+              "techniques": [
+                "Using AWS CodePipeline",
+                "Using AWS CodeBuild",
+                "Using automated testing frameworks for continuous deployment and testing of GenAI components with security scans and rollback support",
+                "Using centralized abstraction layers",
+                "Using observability and control mechanisms"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2.4",
+          "title": "Implement FM API integrations",
+          "skills": [
+            {
+              "id": "2.4.1",
+              "description": "Create flexible model interaction systems.",
+              "techniques": [
+                "Using Amazon Bedrock APIs to manage synchronous requests from various compute environments",
+                "Using language-specific AWS SDKs and Amazon SQS for asynchronous processing",
+                "Using API Gateway to provide custom API clients with request validation"
+              ]
+            },
+            {
+              "id": "2.4.2",
+              "description": "Develop real-time AI interaction systems to provide immediate feedback from FM.",
+              "techniques": [
+                "Using Amazon Bedrock streaming APIs for incremental response delivery",
+                "Using WebSockets or server-sent events to generate text in real time",
+                "Using API Gateway to implement chunked transfer encoding"
+              ]
+            },
+            {
+              "id": "2.4.3",
+              "description": "Create resilient FM systems to ensure reliable operations.",
+              "techniques": [
+                "Using the AWS SDK for exponential backoff",
+                "Using API Gateway to manage rate limiting",
+                "Using fallback mechanisms for graceful degradation",
+                "Using AWS X-Ray to provide observability across service boundaries"
+              ]
+            },
+            {
+              "id": "2.4.4",
+              "description": "Develop intelligent model routing systems to optimize model selection.",
+              "techniques": [
+                "Using application code to implement static routing configurations",
+                "Using Step Functions for dynamic content-based routing to specialized FMs",
+                "Using intelligent model routing based on metrics",
+                "Using API Gateway with request transformations for routing logic"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "2.5",
+          "title": "Implement application integration patterns and development tools",
+          "skills": [
+            {
+              "id": "2.5.1",
+              "description": "Create FM API interfaces to address the specific requirements of GenAI workloads.",
+              "techniques": [
+                "Using API Gateway to handle streaming responses",
+                "Token limit management",
+                "Retry strategies to handle model timeouts"
+              ]
+            },
+            {
+              "id": "2.5.2",
+              "description": "Develop accessible AI interfaces to accelerate adoption and integration of FMs.",
+              "techniques": [
+                "Using AWS Amplify to develop declarative UI components",
+                "Using OpenAPI specifications for API-first development approaches",
+                "Using Amazon Bedrock Prompt Flows for no-code workflow builders"
+              ]
+            },
+            {
+              "id": "2.5.3",
+              "description": "Create business system enhancements.",
+              "techniques": [
+                "Using Lambda functions to implement CRM enhancements",
+                "Using Step Functions to orchestrate document processing systems",
+                "Using Amazon Q Business data sources to provide internal knowledge tools",
+                "Using Amazon Bedrock Data Automation to manage automated data processing workflows"
+              ]
+            },
+            {
+              "id": "2.5.4",
+              "description": "Enhance developer productivity to accelerate development workflows for GenAI applications.",
+              "techniques": [
+                "Using Amazon Q Developer to generate and refactor code",
+                "Using code suggestions for API assistance",
+                "Using AI component testing",
+                "Using performance optimization"
+              ]
+            },
+            {
+              "id": "2.5.5",
+              "description": "Develop advanced GenAI applications to implement sophisticated AI capabilities.",
+              "techniques": [
+                "Using Strands Agents and AWS Agent Squad for AWS native orchestration",
+                "Using Step Functions to orchestrate agent design patterns",
+                "Using Amazon Bedrock to manage prompt chaining patterns"
+              ]
+            },
+            {
+              "id": "2.5.6",
+              "description": "Improve troubleshooting efficiency for FM applications.",
+              "techniques": [
+                "Using CloudWatch Logs Insights to analyze prompts and responses",
+                "Using X-Ray to trace FM API calls",
+                "Using Amazon Q Developer to implement GenAI-specific error pattern recognition"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "AI Safety, Security, and Governance",
+      "weight_pct": 20,
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/ai-professional-01-domain3.html",
+      "tasks": [
+        {
+          "id": "3.1",
+          "title": "Implement input and output safety controls",
+          "skills": [
+            {
+              "id": "3.1.1",
+              "description": "Develop comprehensive content safety systems to protect against harmful user inputs to FMs.",
+              "techniques": [
+                "Use Amazon Bedrock guardrails to filter content",
+                "Use Step Functions and Lambda functions to implement custom moderation workflows",
+                "Implement real-time validation mechanisms"
+              ]
+            },
+            {
+              "id": "3.1.2",
+              "description": "Create content safety frameworks to prevent harmful outputs.",
+              "techniques": [
+                "Use Amazon Bedrock guardrails to filter responses",
+                "Use specialized FM evaluations for content moderation and toxicity detection",
+                "Use text-to-SQL transformations to ensure deterministic results"
+              ]
+            },
+            {
+              "id": "3.1.3",
+              "description": "Develop accuracy verification systems to reduce hallucinations in FM responses.",
+              "techniques": [
+                "Use Amazon Bedrock Knowledge Base to ground responses and perform fact-checking",
+                "Use confidence scoring and semantic similarity search for verification",
+                "Use JSON Schema to enforce structured outputs"
+              ]
+            },
+            {
+              "id": "3.1.4",
+              "description": "Create defense-in-depth safety systems to provide comprehensive protection against FM misuse.",
+              "techniques": [
+                "Use Amazon Comprehend to develop pre-processing filters",
+                "Use Amazon Bedrock to implement model-based guardrails",
+                "Use Lambda functions to perform post-processing validation",
+                "Use API Gateway to implement API response filtering"
+              ]
+            },
+            {
+              "id": "3.1.5",
+              "description": "Implement advanced threat detection to protect against adversarial inputs and security vulnerabilities.",
+              "techniques": [
+                "Implement prompt injection and jailbreak detection mechanisms",
+                "Implement input sanitization and content filters",
+                "Implement safety classifiers",
+                "Implement automated adversarial testing workflows"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "3.2",
+          "title": "Implement data security and privacy controls",
+          "skills": [
+            {
+              "id": "3.2.1",
+              "description": "Develop protected AI environments to ensure comprehensive security for FM deployments.",
+              "techniques": [
+                "Use VPC endpoints to isolate networks",
+                "Use IAM policies to enforce secure data access patterns",
+                "Use AWS Lake Formation to provide granular data access",
+                "Use CloudWatch to monitor data access"
+              ]
+            },
+            {
+              "id": "3.2.2",
+              "description": "Develop privacy-preserving systems to protect sensitive information during FM interactions.",
+              "techniques": [
+                "Use Amazon Comprehend and Amazon Macie to detect PII",
+                "Use Amazon Bedrock native data privacy features",
+                "Use Amazon Bedrock guardrails to filter outputs",
+                "Use Amazon S3 Lifecycle configurations to implement data retention policies"
+              ]
+            },
+            {
+              "id": "3.2.3",
+              "description": "Create privacy-focused AI systems to protect user privacy while maintaining FM utility and effectiveness.",
+              "techniques": [
+                "Use data masking techniques",
+                "Use Amazon Comprehend PII detection",
+                "Use anonymization strategies for sensitive information",
+                "Use Amazon Bedrock guardrails"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "3.3",
+          "title": "Implement AI governance and compliance mechanisms",
+          "skills": [
+            {
+              "id": "3.3.1",
+              "description": "Develop compliance frameworks to ensure regulatory compliance for FM deployments.",
+              "techniques": [
+                "Use SageMaker AI to develop programmatic model cards",
+                "Use AWS Glue to automatically track data lineage",
+                "Use metadata tagging for systematic data source attribution",
+                "Use CloudWatch Logs to collect comprehensive decision logs"
+              ]
+            },
+            {
+              "id": "3.3.2",
+              "description": "Implement data source tracking to maintain traceability in GenAI applications.",
+              "techniques": [
+                "Use AWS Glue Data Catalog to register data sources",
+                "Use metadata tagging for source attribution in FM-generated content",
+                "Use CloudTrail for audit logging"
+              ]
+            },
+            {
+              "id": "3.3.3",
+              "description": "Create organizational governance systems to ensure consistent oversight of FM implementations.",
+              "techniques": [
+                "Develop comprehensive frameworks that align with organizational policies",
+                "Align with regulatory requirements",
+                "Align with responsible AI principles"
+              ]
+            },
+            {
+              "id": "3.3.4",
+              "description": "Implement continuous monitoring and advanced governance controls to support safety audits and regulatory readiness.",
+              "techniques": [
+                "Use automated detection for misuse, drift, and policy violations",
+                "Use bias drift monitoring",
+                "Use automated alerting and remediation workflows",
+                "Use token-level redaction",
+                "Use response logging",
+                "Use AI output policy filters"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "3.4",
+          "title": "Implement responsible AI principles",
+          "skills": [
+            {
+              "id": "3.4.1",
+              "description": "Develop transparent AI systems in FM outputs.",
+              "techniques": [
+                "Use reasoning displays to provide user-facing explanations",
+                "Use CloudWatch to collect confidence metrics and quantify uncertainty",
+                "Use evidence presentation for source attribution",
+                "Use Amazon Bedrock agent tracing to provide reasoning traces"
+              ]
+            },
+            {
+              "id": "3.4.2",
+              "description": "Apply fairness evaluations to ensure unbiased FM outputs.",
+              "techniques": [
+                "Use pre-defined fairness metrics in CloudWatch",
+                "Use Amazon Bedrock Prompt Management and Amazon Bedrock Prompt Flows to perform systematic A/B testing",
+                "Use Amazon Bedrock with LLM-as-a-judge solutions to perform automated model evaluations"
+              ]
+            },
+            {
+              "id": "3.4.3",
+              "description": "Develop policy-compliant AI systems to ensure adherence to responsible AI practices.",
+              "techniques": [
+                "Use Amazon Bedrock guardrails based on policy requirements",
+                "Use model cards to document FM limitations",
+                "Use Lambda functions to perform automated compliance checks"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Operational Efficiency and Optimization for GenAI Applications",
+      "weight_pct": 12,
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/ai-professional-01-domain4.html",
+      "tasks": [
+        {
+          "id": "4.1",
+          "title": "Implement cost optimization and resource efficiency strategies",
+          "skills": [
+            {
+              "id": "4.1.1",
+              "description": "Develop token efficiency systems to reduce FM costs while maintaining effectiveness.",
+              "techniques": [
+                "Token estimation and tracking",
+                "Context window optimization",
+                "Response size controls",
+                "Prompt compression",
+                "Context pruning",
+                "Response limiting"
+              ]
+            },
+            {
+              "id": "4.1.2",
+              "description": "Create cost-effective model selection frameworks.",
+              "techniques": [
+                "Cost-capability tradeoff evaluation",
+                "Tiered FM usage based on query complexity",
+                "Inference cost balancing against response quality",
+                "Price-to-performance ratio measurement",
+                "Efficient inference patterns"
+              ]
+            },
+            {
+              "id": "4.1.3",
+              "description": "Develop high-performance FM systems to maximize resource utilization and throughput for GenAI workloads.",
+              "techniques": [
+                "Batching strategies",
+                "Capacity planning",
+                "Utilization monitoring",
+                "Auto-scaling configurations",
+                "Provisioned throughput optimization"
+              ]
+            },
+            {
+              "id": "4.1.4",
+              "description": "Create intelligent caching systems to reduce costs and improve response times by avoiding unnecessary FM invocations.",
+              "techniques": [
+                "Semantic caching",
+                "Result fingerprinting",
+                "Edge caching",
+                "Deterministic request hashing",
+                "Prompt caching"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "4.2",
+          "title": "Optimize application performance",
+          "skills": [
+            {
+              "id": "4.2.1",
+              "description": "Create responsive AI systems to address latency-cost tradeoffs and improve the user experience with FMs.",
+              "techniques": [
+                "Pre-computation to perform predictable queries",
+                "Latency-optimized Amazon Bedrock models for time-sensitive applications",
+                "Parallel requests for complex workflows",
+                "Response streaming",
+                "Performance benchmarking"
+              ]
+            },
+            {
+              "id": "4.2.2",
+              "description": "Enhance retrieval performance to improve the relevance and speed of retrieved information for FM context augmentation.",
+              "techniques": [
+                "Index optimization",
+                "Query preprocessing",
+                "Hybrid search implementation with custom scoring"
+              ]
+            },
+            {
+              "id": "4.2.3",
+              "description": "Implement FM throughput optimization to address the specific throughput challenges of GenAI workloads.",
+              "techniques": [
+                "Token processing optimization",
+                "Batch inference strategies",
+                "Concurrent model invocation management"
+              ]
+            },
+            {
+              "id": "4.2.4",
+              "description": "Enhance FM performance to achieve optimal results for specific GenAI use cases.",
+              "techniques": [
+                "Model-specific parameter configurations",
+                "A/B testing to evaluate improvements",
+                "Appropriate temperature and top-k/top-p selection based on requirements"
+              ]
+            },
+            {
+              "id": "4.2.5",
+              "description": "Create efficient resource allocation systems specifically for FM workloads.",
+              "techniques": [
+                "Capacity planning for token processing requirements",
+                "Utilization monitoring for prompt and completion patterns",
+                "Auto-scaling configurations optimized for GenAI traffic patterns"
+              ]
+            },
+            {
+              "id": "4.2.6",
+              "description": "Optimize FM system performance for GenAI workflows.",
+              "techniques": [
+                "API call profiling for prompt-completion patterns",
+                "Vector database query optimization for retrieval augmentation",
+                "Latency reduction techniques specific to LLM inference",
+                "Efficient service communication patterns"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "4.3",
+          "title": "Implement monitoring systems for GenAI applications",
+          "skills": [
+            {
+              "id": "4.3.1",
+              "description": "Create holistic observability systems to provide complete visibility into FM application performance.",
+              "techniques": [
+                "Operational metrics",
+                "Performance tracing",
+                "FM interaction tracing",
+                "Business impact metrics with custom dashboards"
+              ]
+            },
+            {
+              "id": "4.3.2",
+              "description": "Implement comprehensive GenAI monitoring systems to proactively identify issues and evaluate key performance indicators specific to FM implementations.",
+              "techniques": [
+                "CloudWatch to track token usage",
+                "Prompt effectiveness monitoring",
+                "Hallucination rates tracking",
+                "Response quality monitoring",
+                "Anomaly detection for token burst patterns and response drift",
+                "Amazon Bedrock Model Invocation Logs for detailed request and response analysis",
+                "Performance benchmarks",
+                "Cost anomaly detection"
+              ]
+            },
+            {
+              "id": "4.3.3",
+              "description": "Develop integrated observability solutions to provide actionable insights for FM applications.",
+              "techniques": [
+                "Operational metric dashboards",
+                "Business impact visualizations",
+                "Compliance monitoring",
+                "Forensic traceability and audit logging",
+                "User interaction tracking",
+                "Model behavior pattern tracking"
+              ]
+            },
+            {
+              "id": "4.3.4",
+              "description": "Create tool performance frameworks to ensure optimal tool operation and utilization for FMs.",
+              "techniques": [
+                "Call pattern tracking",
+                "Performance metric collection",
+                "Tool calling observability and multi-agent coordination tracking",
+                "Usage baselines for anomaly detection"
+              ]
+            },
+            {
+              "id": "4.3.5",
+              "description": "Create vector store operational management systems to ensure optimal vector store operation and reliability for FM augmentation.",
+              "techniques": [
+                "Performance monitoring for vector databases",
+                "Automated index optimization routines",
+                "Data quality validation processes"
+              ]
+            },
+            {
+              "id": "4.3.6",
+              "description": "Develop FM-specific troubleshooting frameworks to identify unique GenAI failure modes that are not present in traditional ML systems.",
+              "techniques": [
+                "Golden datasets to detect hallucinations",
+                "Output diffing techniques to conduct response consistency analysis",
+                "Reasoning path tracing to identify logical errors",
+                "Specialized observability pipelines"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Testing, Validation, and Troubleshooting",
+      "weight_pct": 11,
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/ai-professional-01-domain5.html",
+      "tasks": [
+        {
+          "id": "5.1",
+          "title": "Implement evaluation systems for GenAI",
+          "skills": [
+            {
+              "id": "5.1.1",
+              "description": "Develop comprehensive assessment frameworks to evaluate the quality and effectiveness of FM outputs beyond traditional ML evaluation approaches.",
+              "techniques": [
+                "Metrics for relevance",
+                "Factual accuracy",
+                "Consistency",
+                "Fluency"
+              ]
+            },
+            {
+              "id": "5.1.2",
+              "description": "Create systematic model evaluation systems to identify optimal configurations.",
+              "techniques": [
+                "Using Amazon Bedrock Model Evaluations",
+                "A/B testing and canary testing of FMs",
+                "Multi-model evaluation",
+                "Cost-performance analysis to measure token efficiency",
+                "Latency-to-quality ratios",
+                "Business outcomes measurement"
+              ]
+            },
+            {
+              "id": "5.1.3",
+              "description": "Develop user-centered evaluation mechanisms to continuously improve FM performance based on user experience.",
+              "techniques": [
+                "Feedback interfaces",
+                "Rating systems for model outputs",
+                "Annotation workflows to assess response quality"
+              ]
+            },
+            {
+              "id": "5.1.4",
+              "description": "Create systematic quality assurance processes to maintain consistent performance standards for FMs.",
+              "techniques": [
+                "Continuous evaluation workflows",
+                "Regression testing for model outputs",
+                "Automated quality gates for deployments"
+              ]
+            },
+            {
+              "id": "5.1.5",
+              "description": "Develop comprehensive assessment systems to ensure thorough evaluation from multiple perspectives for FM outputs.",
+              "techniques": [
+                "RAG evaluation",
+                "Automated quality assessment with LLM-as-a-Judge techniques",
+                "Human feedback collection interfaces"
+              ]
+            },
+            {
+              "id": "5.1.6",
+              "description": "Implement retrieval quality testing to evaluate and optimize information retrieval components for FM augmentation.",
+              "techniques": [
+                "Relevance scoring",
+                "Context matching verification",
+                "Retrieval latency measurements"
+              ]
+            },
+            {
+              "id": "5.1.7",
+              "description": "Develop agent performance frameworks to ensure that agents perform tasks correctly and efficiently.",
+              "techniques": [
+                "Task completion rate measurements",
+                "Tool usage effectiveness evaluations",
+                "Amazon Bedrock Agent evaluations",
+                "Reasoning quality assessment in multi-step workflows"
+              ]
+            },
+            {
+              "id": "5.1.8",
+              "description": "Create comprehensive reporting systems to communicate performance metrics and insights effectively to stakeholders.",
+              "techniques": [
+                "Visualization tools",
+                "Automated reporting mechanisms",
+                "Model comparison visualizations"
+              ]
+            },
+            {
+              "id": "5.1.9",
+              "description": "Create deployment validation systems to maintain reliability during FM updates.",
+              "techniques": [
+                "Synthetic user workflows",
+                "AI-specific output validation for hallucination rates and semantic drift",
+                "Automated quality checks to ensure response consistency"
+              ]
+            }
+          ]
+        },
+        {
+          "id": "5.2",
+          "title": "Troubleshoot GenAI applications",
+          "skills": [
+            {
+              "id": "5.2.1",
+              "description": "Resolve content handling issues to ensure that necessary information is processed completely in FM interactions.",
+              "techniques": [
+                "Context window overflow diagnostics",
+                "Dynamic chunking strategies",
+                "Prompt design optimization",
+                "Truncation-related error analysis"
+              ]
+            },
+            {
+              "id": "5.2.2",
+              "description": "Diagnose and resolve FM integration issues to identify and fix API integration problems specific to GenAI services.",
+              "techniques": [
+                "Error logging",
+                "Request validation",
+                "Response analysis"
+              ]
+            },
+            {
+              "id": "5.2.3",
+              "description": "Troubleshoot prompt engineering problems to improve FM response quality and consistency beyond basic prompt adjustments.",
+              "techniques": [
+                "Prompt testing frameworks",
+                "Version comparison",
+                "Systematic refinement"
+              ]
+            },
+            {
+              "id": "5.2.4",
+              "description": "Troubleshoot retrieval system issues to identify and resolve problems that affect information retrieval effectiveness for FM augmentation.",
+              "techniques": [
+                "Model response relevance analysis",
+                "Embedding quality diagnostics",
+                "Drift monitoring",
+                "Vectorization issue resolution",
+                "Chunking and preprocessing remediation",
+                "Vector search performance optimization"
+              ]
+            },
+            {
+              "id": "5.2.5",
+              "description": "Troubleshoot prompt maintenance issues to continuously improve the performance of FM interactions.",
+              "techniques": [
+                "Using template testing and CloudWatch Logs to diagnose prompt confusion",
+                "Using X-Ray to implement prompt observability pipelines",
+                "Using schema validation to detect format inconsistencies",
+                "Systematic prompt refinement workflows"
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "appendix": {
+    "technologies_and_concepts": {
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/ai-professional-01-technologies-concepts.html",
+      "genai_ai_ml_core": [
+        "Retrieval Augmented Generation (RAG)",
+        "Vector databases and embeddings",
+        "Prompt engineering and management",
+        "Foundation model (FM) integration",
+        "Agentic AI systems",
+        "Responsible AI practices",
+        "Content safety and moderation",
+        "Model evaluation and validation"
+      ],
+      "operational": [
+        "Cost optimization for AI workloads",
+        "Performance tuning for AI applications",
+        "Monitoring and observability for AI systems",
+        "Security and governance for AI applications"
+      ],
+      "architecture_and_integration": [
+        "API design and integration patterns",
+        "Event-driven architectures",
+        "Serverless computing",
+        "Container orchestration",
+        "Infrastructure as code (IaC)",
+        "CI/CD for AI applications",
+        "Hybrid cloud architectures",
+        "Enterprise system integration"
+      ]
+    },
+    "in_scope_aws_services": {
+      "source": "https://docs.aws.amazon.com/aws-certification/latest/ai-professional-01/aip-01-in-scope-services.html",
+      "analytics": [
+        "Amazon Athena",
+        "Amazon EMR",
+        "AWS Glue",
+        "Amazon Kinesis",
+        "Amazon OpenSearch Service",
+        "Amazon QuickSight",
+        "Amazon Managed Streaming for Apache Kafka (Amazon MSK)"
+      ],
+      "application_integration": [
+        "Amazon AppFlow",
+        "AWS AppConfig",
+        "Amazon EventBridge",
+        "Amazon SNS",
+        "Amazon SQS",
+        "AWS Step Functions"
+      ],
+      "compute": [
+        "AWS App Runner",
+        "Amazon EC2",
+        "AWS Lambda",
+        "AWS Lambda@Edge",
+        "AWS Outposts",
+        "AWS Wavelength"
+      ],
+      "containers": [
+        "Amazon ECR",
+        "Amazon ECS",
+        "Amazon EKS",
+        "AWS Fargate"
+      ],
+      "customer_engagement": [
+        "Amazon Connect"
+      ],
+      "database": [
+        "Amazon Aurora",
+        "Amazon DocumentDB",
+        "Amazon DynamoDB",
+        "Amazon DynamoDB Streams",
+        "Amazon ElastiCache",
+        "Amazon Neptune",
+        "Amazon RDS"
+      ],
+      "developer_tools": [
+        "AWS Amplify",
+        "AWS CDK",
+        "AWS CLI",
+        "AWS CloudFormation",
+        "AWS CodeArtifact",
+        "AWS CodeBuild",
+        "AWS CodeDeploy",
+        "AWS CodePipeline",
+        "AWS Tools and SDKs",
+        "AWS X-Ray"
+      ],
+      "machine_learning": [
+        "Amazon Augmented AI",
+        "Amazon Bedrock",
+        "Amazon Bedrock AgentCore",
+        "Amazon Bedrock Knowledge Bases",
+        "Amazon Bedrock Prompt Management",
+        "Amazon Bedrock Prompt Flows",
+        "Amazon Comprehend",
+        "Amazon Kendra",
+        "Amazon Lex",
+        "Amazon Q Business",
+        "Amazon Q Business Apps",
+        "Amazon Q Developer",
+        "Amazon Rekognition",
+        "Amazon SageMaker AI",
+        "Amazon SageMaker Clarify",
+        "Amazon SageMaker Data Wrangler",
+        "Amazon SageMaker Ground Truth",
+        "Amazon SageMaker JumpStart",
+        "Amazon SageMaker Model Monitor",
+        "Amazon SageMaker Model Registry",
+        "Amazon SageMaker Neo",
+        "Amazon SageMaker Processing",
+        "Amazon SageMaker Unified Studio",
+        "Amazon Textract",
+        "Amazon Titan",
+        "Amazon Transcribe"
+      ],
+      "management_and_governance": [
+        "AWS Auto Scaling",
+        "AWS Chatbot",
+        "AWS CloudTrail",
+        "Amazon CloudWatch",
+        "Amazon CloudWatch Logs",
+        "Amazon CloudWatch Synthetics",
+        "AWS Cost Anomaly Detection",
+        "AWS Cost Explorer",
+        "Amazon Managed Grafana",
+        "AWS Service Catalog",
+        "AWS Systems Manager",
+        "AWS Well-Architected Tool"
+      ],
+      "migration_and_transfer": [
+        "AWS DataSync",
+        "AWS Transfer Family"
+      ],
+      "networking_and_content_delivery": [
+        "Amazon API Gateway",
+        "AWS AppSync",
+        "Amazon CloudFront",
+        "Elastic Load Balancing (ELB)",
+        "AWS Global Accelerator",
+        "AWS PrivateLink",
+        "Amazon Route 53",
+        "Amazon VPC"
+      ],
+      "security_identity_and_compliance": [
+        "Amazon Cognito",
+        "AWS Encryption SDK",
+        "IAM",
+        "IAM Access Analyzer",
+        "IAM Identity Center",
+        "AWS KMS",
+        "Amazon Macie",
+        "AWS Secrets Manager",
+        "AWS WAF"
+      ],
+      "storage": [
+        "Amazon EBS",
+        "Amazon EFS",
+        "Amazon S3",
+        "Amazon S3 Intelligent-Tiering",
+        "Amazon S3 Lifecycle policies",
+        "Amazon S3 Cross-Region Replication"
+      ]
+    },
+    "community_resources": {
+      "github_study_notes": {
+        "url": "https://github.com/MakendranG/aws-genai-professional-certification-notes",
+        "description": "43 pages of handwritten study notes (JPG images). Created by Early Adopter badge winner (first 5,000 globally). Prep: 24h Udemy, 35+ h AWS Skill Builder, 375+ practice questions, hands-on labs."
+      },
+      "tutorials_dojo": {
+        "exam_guide": "https://tutorialsdojo.com/aws-certified-generative-ai-developer-professional-certification-aip-c01-exam-guide-and-aip-c01-exam-topics-list/",
+        "study_path": "https://tutorialsdojo.com/aws-certified-generative-ai-developer-professional-study-path-aip-c01-exam-guide/",
+        "practice_exams_paid": "https://portal.tutorialsdojo.com/courses/aws-certified-generative-ai-developer-professional-aip-c01-practice-exams/",
+        "study_guide_ebook_paid": "https://portal.tutorialsdojo.com/product/study-guide-ebook-aws-certified-generative-ai-developer-professional-aip-c01/",
+        "video_course_paid": "https://portal.tutorialsdojo.com/courses/aws-certified-generative-ai-developer-professional-aip-c01-video-course/"
+      },
+      "aws_skill_builder": {
+        "exam_prep_plan": "https://skillbuilder.aws/learning-plan/9VXVGYT38G/exam-prep-plan-aws-certified-generative-ai-developer--professional-aipc01--english/4SCMN2659K",
+        "official_practice_questions": "https://skillbuilder.aws/learn/HSEKTD11NX/official-practice-question-set-aws-certified--generative-ai-developer--professional-aipc01--english/ZDANP82P4V",
+        "domain_1_practice": "https://skillbuilder.aws/learn/V5N6SFRR6S/domain-1-practice-aws-certified-generative-ai-developer--professional-aipc01-english/NRSMYNRGY3"
+      },
+      "official_aws_exam_page": "https://aws.amazon.com/certification/certified-generative-ai-developer-professional/",
+      "other": {
+        "amazon_book_350_questions": "https://www.amazon.com/AWS-Certified-Generative-Developer-Scenario-Based/dp/B0GBW9FJC7",
+        "udemy_course": "https://www.udemy.com/course/aws-certified-generative-ai-developer-professional-aip-c01/",
+        "sundog_education": "https://www.sundog-education.com/2025/12/01/new-aws-certified-genai-developer-pro-prep-resources/"
+      }
+    }
+  }
+}

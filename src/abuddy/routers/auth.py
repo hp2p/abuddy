@@ -17,9 +17,8 @@ _COOKIE_MAX_AGE = 60 * 60 * 8  # 8시간
 async def login_page(request: Request):
     """로그인 페이지 — Cognito Hosted UI로 리다이렉트 버튼 제공"""
     if not settings.cognito_domain:
-        return templates.TemplateResponse("login_no_cognito.html", {"request": request})
-    return templates.TemplateResponse("login.html", {
-        "request": request,
+        return templates.TemplateResponse(request, "login_no_cognito.html")
+    return templates.TemplateResponse(request, "login.html", {
         "cognito_url": _cognito_auth_url(),
     })
 

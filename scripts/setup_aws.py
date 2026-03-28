@@ -164,6 +164,16 @@ def create_iam_role():
         logger.info(f"Created IAM role: {role_name}")
     except iam.exceptions.EntityAlreadyExistsException:
         logger.info(f"IAM role already exists: {role_name}")
+    except Exception as e:
+        if "AccessDenied" in str(e):
+            logger.warning(
+                "IAM 권한 없음. 다음 중 하나를 선택하세요:\n"
+                "  A) IAM Console에서 abuddy-dev 유저에 IAMFullAccess 추가 후 재실행\n"
+                "  B) IAM Console에서 직접 생성:\n"
+                "     Roles → Create role → EC2 → 정책 3개(DynamoDB/S3/Bedrock) → 이름: abuddy-ec2-role"
+            )
+        else:
+            raise
 
 
 # ── 메인 ──────────────────────────────────────────

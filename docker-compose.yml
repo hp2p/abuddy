@@ -2,7 +2,7 @@ services:
   app:
     build: .
     ports:
-      - "8000:8000"
+      - "8002:8002"
     environment:
       - AWS_REGION=${AWS_REGION:-ap-northeast-2}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}

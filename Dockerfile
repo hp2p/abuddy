@@ -19,6 +19,6 @@ RUN mkdir -p logs
 ENV PYTHONPATH=/app/src
 ENV UV_SYSTEM_PYTHON=1
 
-EXPOSE 8000
+EXPOSE 8002
 
-CMD ["uv", "run", "uvicorn", "abuddy.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "abuddy.main:app", "--host", "0.0.0.0", "--port", "8002"]

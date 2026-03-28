@@ -2,6 +2,7 @@ import sys
 
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
@@ -16,6 +17,7 @@ logger.add(sys.stderr, level="DEBUG", format="{time:HH:mm:ss} | {level:<8} | {me
 logger.add("logs/abuddy.log", rotation="10 MB", retention="7 days", level="INFO")
 
 app = FastAPI(title="ABuddy — AWS GenAI Cert Study", version="0.1.0")
+app.mount("/static", StaticFiles(directory="src/abuddy/static"), name="static")
 app.include_router(auth_router)
 app.include_router(quiz_router)
 

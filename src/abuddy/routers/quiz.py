@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from loguru import logger
@@ -35,8 +35,7 @@ async def index(request: Request):
         user_id = get_current_user(request)
     except NotAuthenticated:
         return RedirectResponse("/auth/login")
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "stats": sdb.get_stats(user_id),
         "question_count": qdb.question_count(),
     })
@@ -51,11 +50,10 @@ async def quiz_page(request: Request):
     user_id = _user(request)
     question = engine.get_next_question(user_id)
     if not question:
-        return templates.TemplateResponse("no_questions.html", {"request": request})
+        return templates.TemplateResponse(request, "no_questions.html")
 
     concept = get_concept(question.concept_id)
-    return templates.TemplateResponse("quiz.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "quiz.html", {
         "question": question,
         "concept": concept,
         "labels": OPTION_LABELS,
@@ -88,8 +86,7 @@ async def submit_answer(request: Request, question_id: str):
     is_correct, schedule = engine.process_answer(user_id, question, selected, self_confirmed)
     concept = get_concept(question.concept_id)
 
-    return templates.TemplateResponse("partials/feedback.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/feedback.html", {
         "question": question,
         "concept": concept,
         "labels": OPTION_LABELS,
@@ -123,8 +120,7 @@ async def ask_followup(request: Request, question_id: str, user_question: str = 
     )
     logger.info(f"[{user_id[:8]}] Followup answered for {question_id[:8]}")
 
-    return templates.TemplateResponse("partials/followup_answer.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "partials/followup_answer.html", {
         "user_question": user_question,
         "answer": answer,
         "question_id": question_id,
@@ -138,8 +134,7 @@ async def ask_followup(request: Request, question_id: str, user_question: str = 
 @router.get("/stats", response_class=HTMLResponse)
 async def stats_page(request: Request):
     user_id = _user(request)
-    return templates.TemplateResponse("stats.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "stats.html", {
         "stats": sdb.get_stats(user_id),
         "question_count": qdb.question_count(),
     })

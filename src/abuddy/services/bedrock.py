@@ -3,6 +3,7 @@ import json
 
 import boto3
 import orjson
+from botocore.config import Config
 from loguru import logger
 
 from abuddy.config import settings
@@ -10,12 +11,16 @@ from abuddy.models.concept import Concept
 from abuddy.models.question import Difficulty, Question, QuestionType
 
 
-def _client():
-    return boto3.client("bedrock-runtime", region_name=settings.aws_region)
+def _client(read_timeout: int = 120):
+    return boto3.client(
+        "bedrock-runtime",
+        region_name=settings.aws_region,
+        config=Config(read_timeout=read_timeout, connect_timeout=10),
+    )
 
 
-def _converse(model_id: str, system: str, user: str, max_tokens: int = 2048) -> str:
-    resp = _client().converse(
+def _converse(model_id: str, system: str, user: str, max_tokens: int = 2048, read_timeout: int = 120) -> str:
+    resp = _client(read_timeout).converse(
         modelId=model_id,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": user}]}],
@@ -156,20 +161,21 @@ Answer the follow-up question clearly."""
 _GRAPH_SYSTEM = """\
 You are an AWS certification expert. Extract concepts and their relationships \
 from AWS exam guide content.
-Respond with valid JSON only."""
+Respond with valid JSON only, no markdown fences."""
 
 _GRAPH_PROMPT = """\
-Below is content from the AWS Certified Generative AI Developer Professional exam guide.
+Below is Domain {domain_num} content from the AWS Certified Generative AI Developer \
+Professional (AIP-C01) exam guide.
 
 {content}
 
-Extract a concept graph. Return JSON:
+Extract ALL distinct concepts from this domain. Return JSON:
 {{
   "nodes": [
     {{
       "concept_id": "short-kebab-case-id",
       "name": "Human readable name",
-      "domain": 1,
+      "domain": {domain_num},
       "description": "One sentence description",
       "aws_services": ["Amazon Bedrock", "..."],
       "tags": ["rag", "retrieval", "..."]
@@ -185,17 +191,19 @@ Extract a concept graph. Return JSON:
   ]
 }}
 
-Guidelines:
-- Extract 30-60 distinct concepts
-- source_id and target_id must reference concept_ids in nodes
-- Focus on concepts that appear in exam questions"""
+Rules:
+- concept_id must be unique kebab-case (prefix with d{domain_num}- to avoid collisions)
+- source_id and target_id must reference concept_ids in nodes above
+- Extract 8-15 concepts for this domain"""
 
 
-def extract_concept_graph(exam_guide_content: str) -> dict:
+def extract_concept_graph_for_domain(domain_num: int, content: str) -> dict:
+    """단일 도메인 콘텐츠에서 개념 추출 (timeout 300s)"""
     raw = _converse(
         settings.bedrock_smart_model_id,
         _GRAPH_SYSTEM,
-        _GRAPH_PROMPT.format(content=exam_guide_content[:50000]),
-        max_tokens=8192,
+        _GRAPH_PROMPT.format(domain_num=domain_num, content=content[:15000]),
+        max_tokens=4096,
+        read_timeout=300,
     )
     return orjson.loads(raw)
