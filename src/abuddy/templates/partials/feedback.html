@@ -1,0 +1,81 @@
+<!-- 결과 피드백 -->
+<div class="space-y-4">
+
+  <!-- 정오 표시 -->
+  <div class="rounded-2xl border p-6
+    {% if is_correct %}border-green-200 bg-green-50{% else %}border-red-200 bg-red-50{% endif %}">
+
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-2xl">{% if is_correct %}✅{% else %}❌{% endif %}</span>
+      <span class="font-semibold text-gray-800">
+        {% if is_correct %}정답입니다!{% else %}오답입니다.{% endif %}
+      </span>
+      {% if not is_correct %}
+      <span class="text-xs text-gray-400 ml-auto">1일 후 다시 출제됩니다</span>
+      {% else %}
+      <span class="text-xs text-gray-400 ml-auto">
+        {% if schedule.is_mastered %}🏆 마스터!
+        {% elif schedule.interval_step.value == 0 %}10분 후 재확인
+        {% elif schedule.interval_step.value == 1 %}1일 후 복습
+        {% elif schedule.interval_step.value == 2 %}7일 후 복습
+        {% else %}30일 후 복습{% endif %}
+      </span>
+      {% endif %}
+    </div>
+
+    <!-- 선택한 답 vs 정답 -->
+    <div class="space-y-1 mb-4">
+      {% for i, option in enumerate(question.options) %}
+      <div class="flex items-center gap-2 text-sm py-1 px-2 rounded-lg
+        {% if i in question.correct_indices %}bg-green-100 text-green-700
+        {% elif i in selected_indices and i not in question.correct_indices %}bg-red-100 text-red-600
+        {% else %}text-gray-500{% endif %}">
+        <span class="font-medium w-4">{{ labels[i] }}.</span>
+        <span>{{ option }}</span>
+        {% if i in question.correct_indices %}<span class="ml-auto text-xs">✓ 정답</span>{% endif %}
+        {% if i in selected_indices and i not in question.correct_indices %}<span class="ml-auto text-xs">✗ 선택</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- 설명 -->
+    <div class="text-sm text-gray-700 bg-white rounded-xl p-4 border border-gray-100">
+      <p class="font-medium text-gray-500 text-xs mb-1">해설</p>
+      <p class="whitespace-pre-wrap leading-relaxed">{{ question.explanation }}</p>
+    </div>
+  </div>
+
+  <!-- 팔로업 질문 영역 -->
+  <div class="bg-white rounded-2xl border border-gray-100 p-5">
+    <p class="text-sm font-medium text-gray-600 mb-3">💬 궁금한 점이 있으신가요?</p>
+    <form
+      hx-post="/quiz/{{ question.question_id }}/ask"
+      hx-target="#followup-area"
+      hx-swap="innerHTML"
+      hx-indicator="#ask-loading"
+    >
+      <div class="flex gap-2">
+        <input
+          type="text" name="user_question"
+          placeholder="이 개념에 대해 질문하세요..."
+          class="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:border-orange-400"
+        >
+        <button type="submit"
+                class="bg-gray-100 text-gray-600 px-4 py-2 rounded-xl text-sm hover:bg-gray-200 transition-colors">
+          질문
+          <span id="ask-loading" class="htmx-indicator text-xs">⏳</span>
+        </button>
+      </div>
+    </form>
+    <div id="followup-area" class="mt-3"></div>
+  </div>
+
+  <!-- 다음 문제 버튼 -->
+  <div class="flex justify-end">
+    <a href="/quiz"
+       class="bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors">
+      다음 문제 →
+    </a>
+  </div>
+
+</div>

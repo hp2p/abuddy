@@ -1,0 +1,65 @@
+<!-- 문제 카드 -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+
+  <!-- 메타 정보 -->
+  <div class="flex items-center gap-2 mb-4 text-xs text-gray-400">
+    {% if concept %}
+    <span class="bg-orange-50 text-orange-600 rounded-full px-2 py-0.5">{{ concept.name }}</span>
+    {% endif %}
+    <span class="bg-gray-100 rounded-full px-2 py-0.5">Domain {{ question.domain }}</span>
+    <span class="rounded-full px-2 py-0.5
+      {% if question.difficulty.value == 'easy' %}bg-green-50 text-green-600
+      {% elif question.difficulty.value == 'medium' %}bg-yellow-50 text-yellow-600
+      {% else %}bg-red-50 text-red-600{% endif %}">
+      {{ question.difficulty.value }}
+    </span>
+    <span class="ml-auto bg-blue-50 text-blue-500 rounded-full px-2 py-0.5">
+      {% if question.question_type.value == 'multiple_response' %}
+        다음 중 {{ question.num_correct }}개
+      {% else %}
+        단일 선택
+      {% endif %}
+    </span>
+  </div>
+
+  <!-- 문제 텍스트 -->
+  <p class="text-gray-800 text-base leading-relaxed mb-6 whitespace-pre-wrap">{{ question.question_text }}</p>
+
+  <!-- 답변 폼 -->
+  <form
+    hx-post="/quiz/{{ question.question_id }}/answer"
+    hx-target="#quiz-area"
+    hx-swap="innerHTML"
+    hx-indicator="#loading"
+  >
+    <div class="space-y-2 mb-6">
+      {% for i, option in enumerate(question.options) %}
+      <label class="flex items-start gap-3 p-3 rounded-xl border border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-colors">
+        {% if question.question_type.value == 'multiple_response' %}
+        <input type="checkbox" name="selected" value="{{ i }}"
+               class="mt-0.5 accent-orange-500 w-4 h-4 flex-shrink-0">
+        {% else %}
+        <input type="radio" name="selected" value="{{ i }}" required
+               class="mt-0.5 accent-orange-500 w-4 h-4 flex-shrink-0">
+        {% endif %}
+        <span class="text-sm text-gray-700">
+          <b class="text-gray-400 mr-1">{{ labels[i] }}.</b>{{ option }}
+        </span>
+      </label>
+      {% endfor %}
+    </div>
+
+    <!-- 제출 -->
+    <div class="flex items-center justify-between">
+      <label class="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
+        <input type="checkbox" name="self_confirmed" value="true" class="accent-orange-500">
+        확실히 이해했어요
+      </label>
+      <button type="submit"
+              class="bg-orange-500 text-white px-6 py-2 rounded-xl text-sm font-medium hover:bg-orange-600 transition-colors">
+        제출
+        <span id="loading" class="htmx-indicator ml-2 text-xs">⏳</span>
+      </button>
+    </div>
+  </form>
+</div>

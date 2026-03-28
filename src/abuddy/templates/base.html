@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ABuddy{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2.0.3"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
+    .htmx-request .htmx-indicator { opacity: 1; }
+    .htmx-request.htmx-indicator { opacity: 1; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+
+  <!-- 헤더 -->
+  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+    <a href="/" class="text-lg font-bold text-orange-500">ABuddy</a>
+    <nav class="flex gap-6 text-sm text-gray-600">
+      <a href="/quiz" class="hover:text-orange-500">문제 풀기</a>
+      <a href="/stats" class="hover:text-orange-500">진도 확인</a>
+    </nav>
+    {% if stats is defined %}
+    <div class="flex gap-4 text-xs text-gray-400">
+      <span>마스터 <b class="text-green-600">{{ stats.mastered }}</b></span>
+      <span>대기 <b class="text-orange-500">{{ stats.due_now }}</b></span>
+      <span>전체 <b>{{ stats.total_scheduled }}</b></span>
+    </div>
+    {% endif %}
+  </header>
+
+  <!-- 메인 -->
+  <main class="max-w-3xl mx-auto px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+</body>
+</html>
