@@ -5,6 +5,7 @@ from loguru import logger
 
 from abuddy.db import questions as qdb
 from abuddy.db import schedule as sdb
+from abuddy.db import user_questions as uqdb
 from abuddy.services import bedrock
 from abuddy.services import quiz_engine as engine
 from abuddy.services.auth import NotAuthenticated, get_current_user
@@ -118,7 +119,17 @@ async def ask_followup(request: Request, question_id: str, user_question: str = 
         correct_answer_text=correct_text + "\n" + question.explanation,
         user_question=user_question,
     )
-    logger.info(f"[{user_id[:8]}] Followup answered for {question_id[:8]}")
+
+    uqdb.save_user_question(
+        user_id=user_id,
+        parent_question_id=question_id,
+        concept_id=question.concept_id,
+        domain=question.domain,
+        parent_question_text=question.question_text,
+        user_question=user_question,
+        llm_answer=answer,
+    )
+    logger.info(f"[{user_id[:8]}] Followup answered + saved for {question_id[:8]}")
 
     return templates.TemplateResponse(request, "partials/followup_answer.html", {
         "user_question": user_question,

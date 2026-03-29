@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     s3_bucket: str = "abuddy-data"
     dynamodb_questions_table: str = "abuddy-questions"
     dynamodb_schedule_table: str = "abuddy-schedule"
+    dynamodb_user_questions_table: str = "abuddy-user-questions"
 
     # Haiku: 일상 작업 (문제 출제, 답변 평가, 팔로업)
     bedrock_model_id: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"

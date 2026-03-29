@@ -25,6 +25,10 @@ uv run scripts/seed_concept_graph.py
 uv run scripts/generate_questions.py
 uv run scripts/generate_questions.py --domain 1 --limit 5
 
+# 사용자 팔로업 질문 → 문제 은행 변환
+uv run scripts/generate_from_user_questions.py
+uv run scripts/generate_from_user_questions.py --limit 20 --dry-run
+
 # Docker 로컬 실행
 docker compose up --build
 ```

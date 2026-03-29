@@ -255,6 +255,71 @@ Answer the follow-up question clearly."""
 
 
 # ──────────────────────────────────────────────
+# 사용자 팔로업 질문 → 문제 생성
+# ──────────────────────────────────────────────
+
+_USER_QUESTION_SYSTEM = """\
+You are an expert AWS exam question writer specializing in the AWS Certified \
+Generative AI Developer Professional (AIP-C01) exam.
+A student asked a follow-up question while studying. Use their question as inspiration \
+to create one realistic exam question that tests the same knowledge area.
+Always respond with valid JSON only, no markdown fences."""
+
+_USER_QUESTION_TEMPLATE = """\
+Concept: {concept_name}
+Original exam question: {parent_question_text}
+Student's follow-up question: {user_question}
+Expert answer given to the student: {llm_answer}
+
+Based on the student's question, write one MULTIPLE CHOICE exam question (4 options A–D, \
+exactly 1 correct answer) that tests the knowledge the student was curious about.
+
+Return JSON:
+{{
+  "question_text": "...",
+  "options": ["option A", "option B", "option C", "option D"],
+  "correct_indices": [0],
+  "explanation": "...",
+  "difficulty": "easy|medium|hard"
+}}
+
+Rules:
+- Options must not include A./B./C./D. prefix
+- Distractors must be plausible (real AWS services or real concepts)
+- Explanation must reference the AWS official recommendation"""
+
+
+def generate_question_from_user_question(
+    concept: Concept,
+    parent_question_text: str,
+    user_question: str,
+    llm_answer: str,
+) -> Question:
+    """사용자 팔로업 질문을 기반으로 새 MC 문제 생성."""
+    prompt = _USER_QUESTION_TEMPLATE.format(
+        concept_name=concept.name,
+        parent_question_text=parent_question_text,
+        user_question=user_question,
+        llm_answer=llm_answer,
+    )
+    raw = _converse(settings.bedrock_smart_model_id, _USER_QUESTION_SYSTEM, prompt, max_tokens=1024)
+    data = orjson.loads(_strip_code_fence(raw))
+    return Question(
+        concept_id=concept.concept_id,
+        domain=concept.domain,
+        difficulty=Difficulty(data.get("difficulty", "medium")),
+        question_type=QuestionType.MULTIPLE_CHOICE,
+        question_text=data["question_text"],
+        options=data["options"],
+        correct_indices=data["correct_indices"],
+        num_correct=1,
+        explanation=data["explanation"],
+        source="user_question",
+        chunk_id="",
+    )
+
+
+# ──────────────────────────────────────────────
 # 개념 그래프 초기 시드 생성 (1회성, Sonnet 사용)
 # ──────────────────────────────────────────────
 

@@ -50,6 +50,21 @@ def create_questions_table():
         logger.info(f"Table already exists: {settings.dynamodb_questions_table}")
 
 
+def create_user_questions_table():
+    """PK=uq_id — 퀴즈 풀이 중 사용자가 남긴 팔로업 질문 수집"""
+    ddb = boto3.client("dynamodb", region_name=REGION)
+    try:
+        ddb.create_table(
+            TableName=settings.dynamodb_user_questions_table,
+            KeySchema=[{"AttributeName": "uq_id", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "uq_id", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        logger.info(f"Created table: {settings.dynamodb_user_questions_table}")
+    except ddb.exceptions.ResourceInUseException:
+        logger.info(f"Table already exists: {settings.dynamodb_user_questions_table}")
+
+
 def create_schedule_table():
     """PK=user_id, SK=question_id (멀티유저)"""
     ddb = boto3.client("dynamodb", region_name=REGION)
@@ -186,6 +201,7 @@ if __name__ == "__main__":
     create_s3_bucket()
     create_questions_table()
     create_schedule_table()
+    create_user_questions_table()
     create_iam_role()
 
     cognito = create_cognito_user_pool(app_url)

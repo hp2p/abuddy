@@ -1,6 +1,6 @@
 # ABuddy — 프로젝트 컨텍스트 & 구현 계획
 
-_마지막 업데이트: 2026-03-29 (2차)_
+_마지막 업데이트: 2026-03-29 (3차)_
 
 ---
 
@@ -22,6 +22,18 @@ uv run scripts/generate_questions.py --mode chunk     # 249개 concept 남음
 - 포트 8000 → 8002 전체 변경
 - 앱 정상 기동 확인 (로그인 + 페이지 렌더링 + DynamoDB 연결)
 - 개념 그래프 S3 저장 완료 (259 nodes, 318 edges)
+
+**완료한 것 (2026-03-29, 3차):**
+- `abuddy-user-questions` DynamoDB 테이블 추가 (사용자 팔로업 질문 수집)
+- `src/abuddy/db/user_questions.py` 신규: save / list_unprocessed / mark_processed
+- `src/abuddy/config.py`: `dynamodb_user_questions_table` 설정 추가
+- `src/abuddy/services/bedrock.py`: `generate_question_from_user_question()` 추가
+- `src/abuddy/routers/quiz.py`: `/ask` 엔드포인트에서 질문+답변 자동 저장
+- `scripts/setup_aws.py`: `create_user_questions_table()` 추가
+- `scripts/generate_from_user_questions.py` 신규: 수집된 질문 → 문제 은행 변환 배치
+- `README.md` 신규: 사용자 가이드 + 운영자 가이드 (DynamoDB 스키마 포함)
+- `.env.example`: `DYNAMODB_USER_QUESTIONS_TABLE` 추가
+- `CLAUDE.md`: `generate_from_user_questions.py` 명령어 추가
 
 **완료한 것 (2026-03-29, 2차):**
 - summary --limit 10: 10 concept × 3문제 = 28개 저장
@@ -123,8 +135,9 @@ generate_questions.py
 | `src/abuddy/models/concept.py` | Concept, ConceptEdge, ConceptGraph |
 | `src/abuddy/db/questions.py` | DynamoDB CRUD (put/get/list/count) |
 | `src/abuddy/db/schedule.py` | DynamoDB CRUD + get_due / get_scheduled / get_stats |
+| `src/abuddy/db/user_questions.py` | 팔로업 질문 저장 / 미처리 조회 / 처리 완료 표시 |
 | `src/abuddy/services/auth.py` | Cognito JWT 검증, JWKS 캐시, token exchange |
-| `src/abuddy/services/bedrock.py` | generate_question / answer_followup / extract_concept_graph / summarize_doc_content / suggest_doc_urls |
+| `src/abuddy/services/bedrock.py` | generate_question / answer_followup / generate_question_from_user_question / extract_concept_graph / summarize_doc_content / suggest_doc_urls |
 | `src/abuddy/services/concept_docs.py` | S3 doc 로드/저장, load_doc_content (summary), load_raw_pages |
 | `src/abuddy/services/concept_graph.py` | S3 로드/저장, networkx, get_related_concept_ids |
 | `src/abuddy/services/quiz_engine.py` | get_next_question, process_answer, _queue_related |
@@ -134,6 +147,8 @@ generate_questions.py
 | `scripts/seed_concept_graph.py` | 시험 가이드 → 개념 그래프 추출 → S3 저장 |
 | `scripts/fetch_concept_docs.py` | Tavily로 AWS 문서 수집 → S3 저장 (259개 완료) |
 | `scripts/generate_questions.py` | 개념별 문제 생성 → DynamoDB 저장 |
+| `scripts/generate_from_user_questions.py` | 수집된 팔로업 질문 → 문제 은행 변환 배치 |
+| `README.md` | 사용자 가이드 + 운영자 가이드 (DynamoDB 스키마 포함) |
 | `aip-c01-exam-guide.json` | 시험 가이드 완전 구조화 JSON |
 | `docker-compose.yml` | 로컬/EC2 Docker 실행 |
 | `pyproject.toml` | 의존성, ruff, pytest 설정 |
@@ -143,7 +158,7 @@ generate_questions.py
 | 항목 | 우선순위 | 설명 |
 |------|----------|------|
 | **문제 생성 완료** | 🔴 P0 | summary+chunk 각 10 concept 테스트 완료 (89개 저장), 웹 테스트 후 전체 생성 예정 |
-| **seed 스크립트 JSON 지원** | 🟡 P1 | .md 파싱 대신 exam-guide.json 직접 사용 |
+| **사용자 질문 → 문제 배치 주기화** | 🟡 P1 | `generate_from_user_questions.py` cron 또는 수동 실행 운영 방침 결정 |
 | **DynamoDB scan 개선** | 🟡 P1 | list_all_question_ids() full scan → GSI 또는 메모리 캐시 |
 | **테스트** | 🟢 P2 | pytest 설정은 있으나 tests/ 없음 |
 | **EC2 배포** | 🟢 P2 | .env, 보안 그룹, docker compose up -d |
@@ -393,12 +408,13 @@ abuddy/
 │   ├── seed_concept_graph.py        ✅
 │   ├── fetch_concept_docs.py        ✅
 │   ├── generate_questions.py        ✅
-│   └── review_summaries.py          ✅
+│   ├── review_summaries.py          ✅
+│   └── generate_from_user_questions.py ✅
 ├── src/abuddy/
 │   ├── config.py                    ✅
 │   ├── main.py                      ✅
 │   ├── models/                      ✅ question, schedule, concept
-│   ├── db/                          ✅ questions, schedule
+│   ├── db/                          ✅ questions, schedule, user_questions
 │   ├── services/                    ✅ auth, bedrock, concept_graph, concept_docs, quiz_engine
 │   ├── routers/                     ✅ auth, quiz
 │   ├── static/                      ✅ htmx.min.js, style.css
