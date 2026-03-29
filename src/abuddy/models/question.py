@@ -27,6 +27,7 @@ class Question(BaseModel):
     num_correct: int = 1         # multiple_response 시 "다음 중 N개를 고르시오"
     explanation: str
     source: str = "generated"   # "official" | "generated"
+    chunk_id: str = ""           # chunk 기반 문제일 때 설정 (concept_id_pX_cY)
 
 
 class AnswerSubmission(BaseModel):

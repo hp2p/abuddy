@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     cognito_domain: str = ""        # e.g. "abuddy.auth.ap-northeast-2.amazoncognito.com"
     app_base_url: str = "http://localhost:8000"  # EC2에서는 http://YOUR_EC2_IP
 
+    # Tavily: AWS 문서 수집 (fetch_concept_docs.py)
+    tavily_api_key: str = ""
+
     app_host: str = "0.0.0.0"
     app_port: int = 8002
 

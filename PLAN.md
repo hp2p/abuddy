@@ -1,6 +1,6 @@
 # ABuddy — 프로젝트 컨텍스트 & 구현 계획
 
-_마지막 업데이트: 2026-03-28_
+_마지막 업데이트: 2026-03-29 (2차)_
 
 ---
 
@@ -8,14 +8,12 @@ _마지막 업데이트: 2026-03-28_
 
 **여기서부터 시작:**
 ```bash
-uv run scripts/generate_questions.py --domain 1 --limit 3
-```
-소량 테스트 후 전체 생성:
-```bash
-uv run scripts/generate_questions.py
+# 웹 테스트 후 전체 생성 (이미 생성된 concept 자동 스킵)
+uv run scripts/generate_questions.py --mode summary   # 249개 concept 남음
+uv run scripts/generate_questions.py --mode chunk     # 249개 concept 남음
 ```
 
-**오늘 완료한 것 (2026-03-28):**
+**완료한 것 (2026-03-28):**
 - `aip-c01-exam-guide.json` 생성 (시험 가이드 100% 구조화)
 - `seed_concept_graph.py` 개선 (JSON 기반 + Task별 체크포인팅)
 - `inspect_graph.py` 추가 (그래프 검사 스크립트)
@@ -23,7 +21,33 @@ uv run scripts/generate_questions.py
 - `StaticFiles` 마운트, HTMX 로컬 파일 적용
 - 포트 8000 → 8002 전체 변경
 - 앱 정상 기동 확인 (로그인 + 페이지 렌더링 + DynamoDB 연결)
-- 개념 그래프 S3 저장 완료
+- 개념 그래프 S3 저장 완료 (259 nodes, 318 edges)
+
+**완료한 것 (2026-03-29, 2차):**
+- summary --limit 10: 10 concept × 3문제 = 28개 저장
+- chunk --limit 10: 10 concept × 평균 6청크 = 61개 저장
+- 현재 총 89개 문제 DynamoDB 저장 완료
+- 웹앱에서 실제 문제 풀기 테스트 예정
+
+**완료한 것 (2026-03-29):**
+- `scripts/fetch_concept_docs.py` 신규: Tavily로 docs.aws.amazon.com 수집 → S3 저장
+  - `--chunk-only`: heading 기준 청킹 (병합 없음, 800자 초과 시 단락 분리)
+  - `--summarize-only`: Bedrock으로 요약 생성 (현재 Sonnet, 24,000자 입력)
+- `src/abuddy/services/concept_docs.py` 신규: S3 doc 로드/저장, chunk_pages() 청킹 로직
+- `src/abuddy/services/bedrock.py`: `summarize_doc_content()` (Sonnet), `generate_question()` chunk 파라미터 추가
+- `scripts/generate_questions.py`: `--mode summary|chunk|all`, Sonnet으로 문제 생성
+- `scripts/review_summaries.py` 신규: Sonnet이 Haiku 요약 품질 검토 (정확성/완결성/집중도)
+- `src/abuddy/models/question.py`: `chunk_id` 필드 추가
+- 259개 concept 전부 AWS 문서 수집 완료 (Tavily, 각 3페이지)
+- Sonnet으로 259개 요약 재생성 완료 (24,000자 입력)
+- 259개 concept 청킹 완료 (heading 기준, S3 docs/{concept_id}.json에 chunks 필드 추가)
+- AWS Budget Actions 설정: $20 초과 시 Bedrock Deny 정책 자동 적용 (`abuddy-ec2-role`)
+- Jinja2 템플릿 전체 완료 (base, login, index, quiz, stats, partials)
+- 정적 파일 완료 (htmx.min.js, style.css)
+- Dockerfile 완료
+- `services/bedrock.py`: LLM 응답 JSON 코드펜스 자동 제거 (`_strip_code_fence`)
+- `generate_questions.py`: 이미 생성된 문제 스킵 (summary: (타입,난이도) 단위, chunk: chunk_id 단위)
+- 웹앱 정상 기동 확인 (로그인 + 퀴즈 + DynamoDB 연동)
 
 ---
 
@@ -40,7 +64,7 @@ uv run scripts/generate_questions.py
 |------|------|
 | 웹 프레임워크 | FastAPI + HTMX + Jinja2 (SSR) |
 | 인증 | Cognito Hosted UI (OAuth2 authorization code flow) |
-| LLM | Bedrock Claude Haiku (일상) + Sonnet (1회성 개념 추출) |
+| LLM | Bedrock Claude Sonnet (개념 추출, 요약, 문제 생성) + Haiku (팔로업 답변) |
 | 개념 그래프 | S3 JSON + networkx DiGraph (메모리 캐시) |
 | 문제 DB | DynamoDB `abuddy-questions` (PK=question_id) |
 | 스케줄 DB | DynamoDB `abuddy-schedule` (PK=user_id, SK=question_id) |
@@ -56,9 +80,15 @@ seed_concept_graph.py
   → Bedrock Sonnet으로 개념 추출
   → S3 graph/concept_graph.json 저장
 
+fetch_concept_docs.py
+  → Tavily로 docs.aws.amazon.com 검색 (concept당 3페이지)
+  → S3 docs/{concept_id}.json 저장 (pages + chunks + summary)
+  → Bedrock Sonnet으로 요약 생성 (24,000자 입력 → 300단어)
+
 generate_questions.py
-  → S3에서 개념 그래프 로드
-  → Bedrock Haiku로 MC/MR 문제 생성
+  → S3에서 개념 그래프 + 문서(summary/chunks) 로드
+  → Bedrock Sonnet으로 MC/MR 문제 생성
+  → --mode summary: concept당 3문제 / --mode chunk: 청크당 1문제
   → DynamoDB abuddy-questions 저장
 
 웹앱 (uvicorn)
@@ -94,13 +124,15 @@ generate_questions.py
 | `src/abuddy/db/questions.py` | DynamoDB CRUD (put/get/list/count) |
 | `src/abuddy/db/schedule.py` | DynamoDB CRUD + get_due / get_scheduled / get_stats |
 | `src/abuddy/services/auth.py` | Cognito JWT 검증, JWKS 캐시, token exchange |
-| `src/abuddy/services/bedrock.py` | generate_question / answer_followup / extract_concept_graph |
+| `src/abuddy/services/bedrock.py` | generate_question / answer_followup / extract_concept_graph / summarize_doc_content / suggest_doc_urls |
+| `src/abuddy/services/concept_docs.py` | S3 doc 로드/저장, load_doc_content (summary), load_raw_pages |
 | `src/abuddy/services/concept_graph.py` | S3 로드/저장, networkx, get_related_concept_ids |
 | `src/abuddy/services/quiz_engine.py` | get_next_question, process_answer, _queue_related |
 | `src/abuddy/routers/auth.py` | /auth/login, /auth/callback, /auth/logout |
 | `src/abuddy/routers/quiz.py` | /, /quiz, /quiz/{id}/answer, /quiz/{id}/ask, /stats |
 | `scripts/setup_aws.py` | S3, DynamoDB, Cognito, IAM 초기화 |
 | `scripts/seed_concept_graph.py` | 시험 가이드 → 개념 그래프 추출 → S3 저장 |
+| `scripts/fetch_concept_docs.py` | Tavily로 AWS 문서 수집 → S3 저장 (259개 완료) |
 | `scripts/generate_questions.py` | 개념별 문제 생성 → DynamoDB 저장 |
 | `aip-c01-exam-guide.json` | 시험 가이드 완전 구조화 JSON |
 | `docker-compose.yml` | 로컬/EC2 Docker 실행 |
@@ -110,16 +142,80 @@ generate_questions.py
 
 | 항목 | 우선순위 | 설명 |
 |------|----------|------|
-| **Jinja2 템플릿 전체** | 🔴 P0 | 앱 실행 자체가 불가 |
-| **Dockerfile** | 🔴 P0 | docker-compose가 참조하나 파일 없음 |
+| **문제 생성 완료** | 🔴 P0 | summary+chunk 각 10 concept 테스트 완료 (89개 저장), 웹 테스트 후 전체 생성 예정 |
 | **seed 스크립트 JSON 지원** | 🟡 P1 | .md 파싱 대신 exam-guide.json 직접 사용 |
-| **정적 파일 (HTMX, CSS)** | 🔴 P0 | UI 동작에 필수 |
+| **DynamoDB scan 개선** | 🟡 P1 | list_all_question_ids() full scan → GSI 또는 메모리 캐시 |
 | **테스트** | 🟢 P2 | pytest 설정은 있으나 tests/ 없음 |
-| **EC2 배포 가이드** | 🟢 P2 | .env, 방화벽, systemd 등 |
+| **EC2 배포** | 🟢 P2 | .env, 보안 그룹, docker compose up -d |
 
 ---
 
-## 3. 구현 계획 (우선순위 순)
+## 3. AWS 문서 파이프라인
+
+### S3 저장 구조
+
+**개념 그래프**: `s3://abuddy-data/graph/concept_graph.json`
+
+**개념별 문서**: `s3://abuddy-data/docs/{concept_id}.json`
+```json
+{
+  "concept_id": "d1-rag",
+  "concept_name": "RAG",
+  "summary": "...(200-300 words, 시험 핵심 압축)...",
+  "chunks": [
+    {
+      "chunk_id": "d1-rag_p0_c0",
+      "page_index": 0,
+      "chunk_index": 0,
+      "heading": "What is RAG",
+      "content": "...(~500-800자)...",
+      "char_count": 650
+    }
+  ],
+  "pages": [
+    {"url": "...", "title": "...", "content": "...최대 8000자..."}
+  ],
+  "fetched_at": "...",
+  "summarized_at": "...",
+  "chunked_at": "..."
+}
+```
+
+### 청킹 규칙
+- `##`, `###`, `####` heading 경계에서 분리
+- heading 없는 경우 빈 줄(단락) 경계로 fallback
+- 800자 초과 시 단락 경계에서 추가 분리
+- 작은 청크는 그대로 유지 (병합 없음)
+- 예상: 페이지당 ~12청크 × 3페이지 × 259 concept ≈ 9,300개 청크
+
+### 문제 생성 모드
+| 모드 | 기반 | 문제 수 | 성격 |
+|------|------|---------|------|
+| `summary` | 전체 요약 (~300 words) | 3문제/concept | 개념 전반 이해 |
+| `chunk` | 개별 청크 (~500-800자) | 1문제/chunk | 세부 사항 |
+| `all` | 둘 다 | summary+chunk | 전체 커버리지 |
+
+### 파이프라인 실행 순서
+```bash
+# 문서 수집 (완료 — 259개)
+uv run scripts/fetch_concept_docs.py
+
+# 청킹 (API 호출 없음)
+uv run scripts/fetch_concept_docs.py --chunk-only
+
+# 요약 (Bedrock Haiku 259회, ~$0.03)
+uv run scripts/fetch_concept_docs.py --summarize-only
+
+# summary 기반 문제 생성 (259 × 3 = 777문제)
+uv run scripts/generate_questions.py --mode summary
+
+# chunk 기반 문제 생성 (단계적 실행 권장)
+uv run scripts/generate_questions.py --mode chunk --domain 1
+```
+
+---
+
+## 4. 구현 계획 (우선순위 순)
 
 ---
 
@@ -247,7 +343,7 @@ tests/
 
 ---
 
-## 4. 시험 가이드 데이터 활용
+## 5. 시험 가이드 데이터 활용
 
 `aip-c01-exam-guide.json` 구조:
 ```json
@@ -280,37 +376,39 @@ tests/
 
 ---
 
-## 5. 파일 구조 (목표 상태)
+## 6. 파일 구조 (목표 상태)
 
 ```
 abuddy/
 ├── aip-c01-exam-guide.json          ✅ 시험 가이드 구조화 JSON
 ├── aip-c01-exam-guide-structured.md ✅ 원본 마크다운
 ├── docker-compose.yml               ✅
-├── Dockerfile                       ❌ → 작성 필요
+├── Dockerfile                       ✅
 ├── pyproject.toml                   ✅
 ├── CLAUDE.md                        ✅
 ├── PLAN.md                          ✅ 이 파일
 ├── .env / .env.example              ✅
 ├── scripts/
 │   ├── setup_aws.py                 ✅
-│   ├── seed_concept_graph.py        ✅ (JSON 지원 추가 필요)
-│   └── generate_questions.py        ✅
+│   ├── seed_concept_graph.py        ✅
+│   ├── fetch_concept_docs.py        ✅
+│   ├── generate_questions.py        ✅
+│   └── review_summaries.py          ✅
 ├── src/abuddy/
 │   ├── config.py                    ✅
-│   ├── main.py                      ✅ (StaticFiles 마운트 추가 필요)
+│   ├── main.py                      ✅
 │   ├── models/                      ✅ question, schedule, concept
 │   ├── db/                          ✅ questions, schedule
-│   ├── services/                    ✅ auth, bedrock, concept_graph, quiz_engine
+│   ├── services/                    ✅ auth, bedrock, concept_graph, concept_docs, quiz_engine
 │   ├── routers/                     ✅ auth, quiz
-│   ├── static/                      ❌ → htmx.min.js, style.css
-│   └── templates/                   ❌ → 전체 작성 필요
+│   ├── static/                      ✅ htmx.min.js, style.css
+│   └── templates/                   ✅ 전체 완료
 └── tests/                           ❌ → P2 작성 예정
 ```
 
 ---
 
-## 6. 실행 순서 (처음 세팅 시)
+## 7. 실행 순서 (처음 세팅 시)
 
 ```bash
 # 1. 의존성 설치

@@ -1,6 +1,4 @@
 """Amazon Bedrock Converse API 래퍼"""
-import json
-
 import boto3
 import orjson
 from botocore.config import Config
@@ -29,6 +27,16 @@ def _converse(model_id: str, system: str, user: str, max_tokens: int = 2048, rea
     return resp["output"]["message"]["content"][0]["text"]
 
 
+def _strip_code_fence(raw: str) -> str:
+    """Remove markdown ```json ... ``` fences from LLM output."""
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s[3:]
+        if s.endswith("```"):
+            s = s[: s.rfind("```")]
+    return s.strip()
+
+
 # ──────────────────────────────────────────────
 # 문제 생성
 # ──────────────────────────────────────────────
@@ -45,7 +53,7 @@ Description: {description}
 Related AWS services: {services}
 Difficulty: {difficulty}
 Domain: {domain}
-
+{doc_section}
 Write one MULTIPLE CHOICE question (4 options A–D, exactly 1 correct answer).
 
 Return JSON:
@@ -70,6 +78,7 @@ Related AWS services: {services}
 Difficulty: {difficulty}
 Domain: {domain}
 Number of correct answers: {num_correct}
+{doc_section}
 
 Write one MULTIPLE RESPONSE question (5 options A–E, exactly {num_correct} correct answers).
 
@@ -88,8 +97,21 @@ def generate_question(
     question_type: QuestionType = QuestionType.MULTIPLE_CHOICE,
     difficulty: Difficulty = Difficulty.MEDIUM,
     num_correct: int = 2,
+    doc_content: str = "",
+    chunk_heading: str = "",
+    chunk_id: str = "",
 ) -> Question:
     services_str = ", ".join(concept.aws_services) if concept.aws_services else "various AWS services"
+    if doc_content and chunk_heading:
+        doc_section = (
+            f"AWS Documentation Reference (Section: {chunk_heading}):\n"
+            f"{doc_content[:2000]}\n"
+            f"Focus this question specifically on the '{chunk_heading}' topic.\n"
+        )
+    elif doc_content:
+        doc_section = f"AWS Documentation Reference:\n{doc_content[:2000]}\n"
+    else:
+        doc_section = ""
 
     if question_type == QuestionType.MULTIPLE_CHOICE:
         prompt = _MC_TEMPLATE.format(
@@ -98,6 +120,7 @@ def generate_question(
             services=services_str,
             difficulty=difficulty.value,
             domain=concept.domain,
+            doc_section=doc_section,
         )
     else:
         prompt = _MR_TEMPLATE.format(
@@ -107,12 +130,13 @@ def generate_question(
             difficulty=difficulty.value,
             domain=concept.domain,
             num_correct=num_correct,
+            doc_section=doc_section,
         )
 
-    raw = _converse(settings.bedrock_model_id, _QUESTION_SYSTEM, prompt)
+    raw = _converse(settings.bedrock_smart_model_id, _QUESTION_SYSTEM, prompt)
     logger.debug(f"Bedrock raw response: {raw[:200]}")
 
-    data = orjson.loads(raw)
+    data = orjson.loads(_strip_code_fence(raw))
     return Question(
         concept_id=concept.concept_id,
         domain=concept.domain,
@@ -124,7 +148,83 @@ def generate_question(
         num_correct=num_correct if question_type == QuestionType.MULTIPLE_RESPONSE else 1,
         explanation=data["explanation"],
         source="generated",
+        chunk_id=chunk_id,
     )
+
+
+# ──────────────────────────────────────────────
+# AWS 문서 요약 (fetch_concept_docs.py용, 1회성)
+# ──────────────────────────────────────────────
+
+_SUMMARIZE_SYSTEM = """\
+You are an AWS certification expert. Summarize AWS documentation for exam preparation.
+Be concise and focus on exam-relevant facts."""
+
+_SUMMARIZE_TEMPLATE = """\
+Concept: {concept_name}
+Target exam: AWS Certified Generative AI Developer Professional (AIP-C01)
+
+AWS Documentation:
+{raw_content}
+
+Summarize the above documentation in 200-300 words. Focus on:
+- What this concept is and how it works
+- Key configuration options or limits relevant to the exam
+- Differences from similar AWS services
+- Common use cases and when to choose this over alternatives
+
+Write in plain English. No markdown headers."""
+
+
+def summarize_doc_content(concept_name: str, raw_content: str) -> str:
+    """수집된 AWS 문서를 시험 대비용 200-300단어 요약으로 압축."""
+    prompt = _SUMMARIZE_TEMPLATE.format(
+        concept_name=concept_name,
+        raw_content=raw_content[:24000],  # 3페이지 합산 전체
+    )
+    return _converse(settings.bedrock_smart_model_id, _SUMMARIZE_SYSTEM, prompt, max_tokens=512)
+
+
+# ──────────────────────────────────────────────
+# AWS 문서 URL 제안 (fetch_concept_docs.py용)
+# ──────────────────────────────────────────────
+
+_DOC_URL_SYSTEM = """\
+You are an AWS documentation expert. Return only valid JSON, no markdown fences."""
+
+_DOC_URL_TEMPLATE = """\
+For the AWS concept below, list 2-3 specific AWS documentation pages that contain \
+the most authoritative and detailed content about this concept.
+
+Concept: {concept_name}
+Description: {description}
+Related AWS services: {services}
+
+Return JSON:
+{{"urls": ["https://docs.aws.amazon.com/...", ...]}}
+
+Rules:
+- Use only docs.aws.amazon.com URLs
+- Prefer user guides and "What is X" / "How X works" pages over API references
+- Use only URLs you are highly confident exist. Known valid patterns:
+  * https://docs.aws.amazon.com/bedrock/latest/userguide/PAGENAME.html
+  * https://docs.aws.amazon.com/sagemaker/latest/dg/PAGENAME.html
+  * https://docs.aws.amazon.com/kendra/latest/dg/PAGENAME.html
+  * https://docs.aws.amazon.com/opensearch-service/latest/developerguide/PAGENAME.html
+- Return 2-3 URLs maximum"""
+
+
+def suggest_doc_urls(concept: Concept) -> list[str]:
+    """concept에 대한 관련 AWS 문서 URL 2-3개를 제안."""
+    services_str = ", ".join(concept.aws_services) if concept.aws_services else "various AWS services"
+    prompt = _DOC_URL_TEMPLATE.format(
+        concept_name=concept.name,
+        description=concept.description,
+        services=services_str,
+    )
+    raw = _converse(settings.bedrock_model_id, _DOC_URL_SYSTEM, prompt, max_tokens=512)
+    data = orjson.loads(_strip_code_fence(raw))
+    return data.get("urls", [])
 
 
 # ──────────────────────────────────────────────
@@ -206,4 +306,4 @@ def extract_concept_graph_for_domain(domain_num: int, content: str) -> dict:
         max_tokens=4096,
         read_timeout=300,
     )
-    return orjson.loads(raw)
+    return orjson.loads(_strip_code_fence(raw))
