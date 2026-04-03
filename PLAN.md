@@ -1,65 +1,66 @@
 # ABuddy — 프로젝트 컨텍스트 & 구현 계획
 
-_마지막 업데이트: 2026-03-29 (3차)_
+_마지막 업데이트: 2026-03-29 (4차)_
 
 ---
 
-## 다음 작업 (2026-03-29 이어서)
+## 현재 상태 요약
 
-**여기서부터 시작:**
+앱 완전 동작 중. 문제 은행 89개 저장 완료 (전체 생성 예정).
+
+**다음 실행할 것:**
 ```bash
-# 웹 테스트 후 전체 생성 (이미 생성된 concept 자동 스킵)
-uv run scripts/generate_questions.py --mode summary   # 249개 concept 남음
-uv run scripts/generate_questions.py --mode chunk     # 249개 concept 남음
+# 전체 문제 생성 (이미 생성된 concept 자동 스킵)
+uv run scripts/generate_questions.py --mode summary
+uv run scripts/generate_questions.py --mode chunk
 ```
 
-**완료한 것 (2026-03-28):**
-- `aip-c01-exam-guide.json` 생성 (시험 가이드 100% 구조화)
-- `seed_concept_graph.py` 개선 (JSON 기반 + Task별 체크포인팅)
-- `inspect_graph.py` 추가 (그래프 검사 스크립트)
-- Starlette 1.0.0 API 호환 수정 (`TemplateResponse` 인수 순서)
-- `StaticFiles` 마운트, HTMX 로컬 파일 적용
-- 포트 8000 → 8002 전체 변경
-- 앱 정상 기동 확인 (로그인 + 페이지 렌더링 + DynamoDB 연결)
-- 개념 그래프 S3 저장 완료 (259 nodes, 318 edges)
+---
 
-**완료한 것 (2026-03-29, 3차):**
-- `abuddy-user-questions` DynamoDB 테이블 추가 (사용자 팔로업 질문 수집)
-- `src/abuddy/db/user_questions.py` 신규: save / list_unprocessed / mark_processed
-- `src/abuddy/config.py`: `dynamodb_user_questions_table` 설정 추가
-- `src/abuddy/services/bedrock.py`: `generate_question_from_user_question()` 추가
-- `src/abuddy/routers/quiz.py`: `/ask` 엔드포인트에서 질문+답변 자동 저장
-- `scripts/setup_aws.py`: `create_user_questions_table()` 추가
-- `scripts/generate_from_user_questions.py` 신규: 수집된 질문 → 문제 은행 변환 배치
-- `README.md` 신규: 사용자 가이드 + 운영자 가이드 (DynamoDB 스키마 포함)
-- `.env.example`: `DYNAMODB_USER_QUESTIONS_TABLE` 추가
-- `CLAUDE.md`: `generate_from_user_questions.py` 명령어 추가
+## 완료된 기능
 
-**완료한 것 (2026-03-29, 2차):**
-- summary --limit 10: 10 concept × 3문제 = 28개 저장
-- chunk --limit 10: 10 concept × 평균 6청크 = 61개 저장
-- 현재 총 89개 문제 DynamoDB 저장 완료
-- 웹앱에서 실제 문제 풀기 테스트 예정
+### 핵심 학습 기능
+- 에빙하우스 스케줄 (IN_SESSION → DAY_1 → WEEK_1 → MONTH_1 → MASTERED)
+- 문제 풀이 + 즉시 피드백 + 해설
+- 오답 시 연관 개념 문제 10분 후 자동 추가
+- AI 팔로업 질문 (Bedrock Haiku)
+- 선택지 순서 매번 랜덤 셔플
+- 복습 문제 + 새 문제 60:40 랜덤 혼합 출제
 
-**완료한 것 (2026-03-29):**
-- `scripts/fetch_concept_docs.py` 신규: Tavily로 docs.aws.amazon.com 수집 → S3 저장
-  - `--chunk-only`: heading 기준 청킹 (병합 없음, 800자 초과 시 단락 분리)
-  - `--summarize-only`: Bedrock으로 요약 생성 (현재 Sonnet, 24,000자 입력)
-- `src/abuddy/services/concept_docs.py` 신규: S3 doc 로드/저장, chunk_pages() 청킹 로직
-- `src/abuddy/services/bedrock.py`: `summarize_doc_content()` (Sonnet), `generate_question()` chunk 파라미터 추가
-- `scripts/generate_questions.py`: `--mode summary|chunk|all`, Sonnet으로 문제 생성
-- `scripts/review_summaries.py` 신규: Sonnet이 Haiku 요약 품질 검토 (정확성/완결성/집중도)
-- `src/abuddy/models/question.py`: `chunk_id` 필드 추가
-- 259개 concept 전부 AWS 문서 수집 완료 (Tavily, 각 3페이지)
-- Sonnet으로 259개 요약 재생성 완료 (24,000자 입력)
-- 259개 concept 청킹 완료 (heading 기준, S3 docs/{concept_id}.json에 chunks 필드 추가)
-- AWS Budget Actions 설정: $20 초과 시 Bedrock Deny 정책 자동 적용 (`abuddy-ec2-role`)
-- Jinja2 템플릿 전체 완료 (base, login, index, quiz, stats, partials)
-- 정적 파일 완료 (htmx.min.js, style.css)
-- Dockerfile 완료
-- `services/bedrock.py`: LLM 응답 JSON 코드펜스 자동 제거 (`_strip_code_fence`)
-- `generate_questions.py`: 이미 생성된 문제 스킵 (summary: (타입,난이도) 단위, chunk: chunk_id 단위)
-- 웹앱 정상 기동 확인 (로그인 + 퀴즈 + DynamoDB 연동)
+### 동기부여 기능
+- 연속 학습 스트릭 (🔥 N일)
+- 오늘의 목표 진행 바 (5문제/일)
+- 시험 D-day 카운트다운
+- 도메인별 숙련도 (접기/펼치기)
+- 동기부여 카드 — 자격증 효과 통계 7개 매일 로테이션 (`src/abuddy/data/motivation_cards.json`)
+
+### 인증
+- Cognito OAuth2 로그인
+- refresh_token 30일 저장 → 자동 로그인 (id_token 만료 시 자동 갱신)
+
+### 인프라
+- DynamoDB 4개 테이블: questions / schedule / user-questions / user-profile
+- `setup_aws.py` 재실행 안전 (Cognito 기설정 시 스킵)
+- 서버 에러 토스트 알림 (HTMX + 500 에러 페이지)
+- Windows NSSM 서비스 등록 가능
+
+---
+
+## 미완성 / 예정
+
+---
+
+## 다음 작업 목록 (우선순위 순)
+
+| # | 항목 | 설명 |
+|---|------|------|
+| 1 | **AWS / Claude 자격증 데이터 완전 분리** | 문제 은행·개념 그래프·스케줄 DB를 자격증별로 완전히 분리. 코드에서 시험 종류를 파라미터로 관리. |
+| 2 | **Claude 자격증 집중** | AWS AIP-C01 대신 Claude 자격증 중심으로 전환. 관련 시험 가이드·문제 생성 우선. |
+| 3 | **Claude 자격증 자료 다운로드 확인** | 수집된 문서 목록 검토, 누락 개념 재수집. |
+| 4 | **Claude 자료 구조화** | 개념 그래프·청크·요약 파이프라인을 Claude 자격증 자료에 맞게 재실행. |
+| 5 | **문제 이중 언어 생성** | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
+| 6 | **모바일 스타일 개선** | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
+| 7 | **음성 입력 지원** | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선, Groq 무료 Whisper API 병행 검토. |
 
 ---
 
@@ -153,15 +154,14 @@ generate_questions.py
 | `docker-compose.yml` | 로컬/EC2 Docker 실행 |
 | `pyproject.toml` | 의존성, ruff, pytest 설정 |
 
-### ❌ 미완성 (구현 필요)
-
 | 항목 | 우선순위 | 설명 |
 |------|----------|------|
-| **문제 생성 완료** | 🔴 P0 | summary+chunk 각 10 concept 테스트 완료 (89개 저장), 웹 테스트 후 전체 생성 예정 |
-| **사용자 질문 → 문제 배치 주기화** | 🟡 P1 | `generate_from_user_questions.py` cron 또는 수동 실행 운영 방침 결정 |
-| **DynamoDB scan 개선** | 🟡 P1 | list_all_question_ids() full scan → GSI 또는 메모리 캐시 |
-| **테스트** | 🟢 P2 | pytest 설정은 있으나 tests/ 없음 |
-| **EC2 배포** | 🟢 P2 | .env, 보안 그룹, docker compose up -d |
+| **문제 전체 생성** | 🔴 P0 | 현재 89개, summary+chunk 전체 실행하면 ~1,000개+ 예상 |
+| **팔로업 질문 → 문제 배치 주기화** | 🟡 P1 | `generate_from_user_questions.py` 주기 실행 방침 결정 |
+| **DynamoDB scan 개선** | 🟡 P1 | `list_all_question_ids()` full scan → 메모리 캐시 고려 |
+| **리더보드** | 🟡 P1 | 주간 풀이 수 기준 멀티유저 랭킹 |
+| **테스트** | 🟢 P2 | pytest 설정 있으나 tests/ 없음 |
+| **EC2 배포** | 🟢 P2 | `.env`, 보안 그룹 8002, `docker compose up -d` |
 
 ---
 

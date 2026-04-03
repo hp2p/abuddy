@@ -25,6 +25,7 @@ def _to_item(user_id: str, s: ReviewSchedule) -> dict:
         "next_review_at": Decimal(str(s.next_review_at.timestamp())),
         "consecutive_correct": s.consecutive_correct,
         "is_mastered": s.is_mastered,
+        "domain": s.domain,
     }
 
 
@@ -35,6 +36,7 @@ def _from_item(item: dict) -> ReviewSchedule:
         next_review_at=datetime.fromtimestamp(float(item["next_review_at"])),
         consecutive_correct=int(item["consecutive_correct"]),
         is_mastered=bool(item["is_mastered"]),
+        domain=int(item.get("domain", 0)),
     )
 
 
@@ -88,3 +90,22 @@ def get_stats(user_id: str) -> dict:
         if not i.get("is_mastered") and float(i["next_review_at"]) <= now_ts
     )
     return {"total_scheduled": total, "mastered": mastered, "due_now": due}
+
+
+def get_domain_stats(user_id: str) -> dict[int, dict]:
+    """도메인별 mastered/total 집계"""
+    resp = _table().query(
+        KeyConditionExpression="user_id = :uid",
+        ExpressionAttributeValues={":uid": user_id},
+    )
+    stats: dict[int, dict] = {}
+    for item in resp.get("Items", []):
+        domain = int(item.get("domain", 0))
+        if domain == 0:
+            continue
+        if domain not in stats:
+            stats[domain] = {"mastered": 0, "total": 0}
+        stats[domain]["total"] += 1
+        if item.get("is_mastered"):
+            stats[domain]["mastered"] += 1
+    return stats

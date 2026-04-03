@@ -15,25 +15,65 @@
 <body class="bg-gray-50 min-h-screen font-sans">
 
   <!-- 헤더 -->
-  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-    <a href="/" class="text-lg font-bold text-orange-500">ABuddy</a>
-    <nav class="flex gap-6 text-sm text-gray-600">
+  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
+    <a href="/" class="text-lg font-bold text-orange-500 shrink-0">ABuddy</a>
+    <nav class="flex gap-5 text-sm text-gray-600">
       <a href="/quiz" class="hover:text-orange-500">문제 풀기</a>
       <a href="/stats" class="hover:text-orange-500">진도 확인</a>
     </nav>
     {% if stats is defined %}
-    <div class="flex gap-4 text-xs text-gray-400">
+    <div class="flex gap-3 text-xs text-gray-400 ml-2">
       <span>마스터 <b class="text-green-600">{{ stats.mastered }}</b></span>
       <span>대기 <b class="text-orange-500">{{ stats.due_now }}</b></span>
-      <span>전체 <b>{{ stats.total_scheduled }}</b></span>
     </div>
     {% endif %}
+    <div class="ml-auto flex items-center gap-3">
+      {% if username is defined and username %}
+      <span class="text-sm text-gray-500">{{ username }}</span>
+      {% endif %}
+      <a href="/auth/logout"
+         class="text-xs text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg px-2.5 py-1 hover:border-red-300 transition-colors">
+        로그아웃
+      </a>
+    </div>
   </header>
 
   <!-- 메인 -->
   <main class="max-w-3xl mx-auto px-4 py-8">
     {% block content %}{% endblock %}
   </main>
+
+  <!-- 서버/네트워크 에러 토스트 -->
+  <div id="error-toast"
+       class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-red-500 text-white text-sm px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 z-50 max-w-sm">
+    <span>⚠️</span>
+    <span id="error-msg">서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</span>
+    <button onclick="document.getElementById('error-toast').classList.add('hidden')"
+            class="ml-1 opacity-70 hover:opacity-100 text-lg leading-none">✕</button>
+  </div>
+
+  <script>
+    function _showErrorToast(msg) {
+      const toast = document.getElementById('error-toast');
+      const msgEl = document.getElementById('error-msg');
+      if (msg) msgEl.textContent = msg;
+      toast.classList.remove('hidden');
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(() => toast.classList.add('hidden'), 6000);
+    }
+    document.body.addEventListener('htmx:responseError', function(evt) {
+      const status = evt.detail.xhr?.status;
+      const msg = status === 500
+        ? '서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+        : status === 404
+        ? '요청한 항목을 찾을 수 없습니다.'
+        : `오류가 발생했습니다. (${status})`;
+      _showErrorToast(msg);
+    });
+    document.body.addEventListener('htmx:sendError', function() {
+      _showErrorToast('네트워크 연결을 확인해 주세요.');
+    });
+  </script>
 
 </body>
 </html>

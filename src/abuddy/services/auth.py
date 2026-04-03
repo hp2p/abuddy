@@ -69,6 +69,21 @@ def get_current_user(request: Request) -> str:
     return verify_token(token)
 
 
+def get_display_name(request: Request) -> str:
+    """JWT 클레임에서 표시용 이름 추출 (email 또는 username 앞부분)"""
+    token = request.cookies.get("id_token")
+    if not token:
+        return ""
+    try:
+        payload = jwt.decode(token, options={"verify_signature": False})
+        email = payload.get("email", "")
+        if email:
+            return email.split("@")[0]
+        return payload.get("cognito:username") or payload.get("sub", "")[:8]
+    except Exception:
+        return ""
+
+
 async def exchange_code(code: str) -> dict:
     """Cognito authorization code → tokens (ID/access/refresh)"""
     callback_url = f"{settings.app_base_url}/auth/callback"
@@ -88,3 +103,22 @@ async def exchange_code(code: str) -> dict:
         )
         resp.raise_for_status()
         return resp.json()
+
+
+async def refresh_id_token(refresh_token: str) -> str:
+    """refresh_token → 새 id_token. 실패 시 예외 발생."""
+    token_url = f"https://{settings.cognito_domain}/oauth2/token"
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            token_url,
+            data={
+                "grant_type": "refresh_token",
+                "client_id": settings.cognito_client_id,
+                "client_secret": settings.cognito_client_secret,
+                "refresh_token": refresh_token,
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json()["id_token"]

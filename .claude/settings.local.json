@@ -8,7 +8,18 @@
       "WebFetch(domain:tutorialsdojo.com)",
       "WebFetch(domain:dev.to)",
       "WebFetch(domain:github.com)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(grep -r \"user_profile\\\\|exam_date\\\\|streak\" /c/git/abuddy/src/abuddy --include=*.py)",
+      "WebFetch(domain:www.anthropic.com)",
+      "WebFetch(domain:anthropic.skilljar.com)",
+      "WebFetch(domain:claudecertifications.com)",
+      "WebFetch(domain:www.ai.cc)",
+      "WebFetch(domain:www.channelinsider.com)",
+      "WebFetch(domain:claude.com)",
+      "WebFetch(domain:www.the-ai-corner.com)",
+      "WebFetch(domain:www.lowcode.agency)",
+      "WebFetch(domain:flashgenius.net)",
+      "WebFetch(domain:www.claudedirectory.org)"
     ]
   }
 }

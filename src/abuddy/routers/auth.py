@@ -10,12 +10,27 @@ router = APIRouter(prefix="/auth")
 templates = Jinja2Templates(directory="src/abuddy/templates")
 templates.env.globals["enumerate"] = enumerate
 
-_COOKIE_MAX_AGE = 60 * 60 * 8  # 8시간
+_ID_TOKEN_MAX_AGE = 60 * 60 * 8       # 8시간
+_REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 30  # 30일
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    """로그인 페이지 — Cognito Hosted UI로 리다이렉트 버튼 제공"""
+    """로그인 페이지 — refresh_token 있으면 자동 갱신, 없으면 Cognito Hosted UI"""
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token and settings.cognito_domain:
+        try:
+            new_id_token = await auth.refresh_id_token(refresh_token)
+            logger.info("Auto-refreshed id_token via refresh_token")
+            response = RedirectResponse("/", status_code=302)
+            response.set_cookie(
+                "id_token", new_id_token,
+                max_age=_ID_TOKEN_MAX_AGE, httponly=True, samesite="lax",
+            )
+            return response
+        except Exception as e:
+            logger.warning(f"Token refresh failed: {e}")
+
     if not settings.cognito_domain:
         return templates.TemplateResponse(request, "login_no_cognito.html")
     return templates.TemplateResponse(request, "login.html", {
@@ -32,16 +47,19 @@ async def cognito_callback(request: Request, code: str = "", error: str = ""):
 
     tokens = await auth.exchange_code(code)
     id_token = tokens.get("id_token", "")
+    refresh_token = tokens.get("refresh_token", "")
     logger.info("User logged in via Cognito")
 
     response = RedirectResponse("/", status_code=302)
     response.set_cookie(
-        "id_token",
-        id_token,
-        max_age=_COOKIE_MAX_AGE,
-        httponly=True,
-        samesite="lax",
+        "id_token", id_token,
+        max_age=_ID_TOKEN_MAX_AGE, httponly=True, samesite="lax",
     )
+    if refresh_token:
+        response.set_cookie(
+            "refresh_token", refresh_token,
+            max_age=_REFRESH_TOKEN_MAX_AGE, httponly=True, samesite="lax",
+        )
     return response
 
 
@@ -55,6 +73,7 @@ async def logout():
     )
     response = RedirectResponse(cognito_logout, status_code=302)
     response.delete_cookie("id_token")
+    response.delete_cookie("refresh_token")
     return response
 
 

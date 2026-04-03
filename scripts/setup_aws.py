@@ -50,6 +50,21 @@ def create_questions_table():
         logger.info(f"Table already exists: {settings.dynamodb_questions_table}")
 
 
+def create_user_profile_table():
+    """PK=user_id — 유저별 스트릭·시험일·오늘 풀이 수"""
+    ddb = boto3.client("dynamodb", region_name=REGION)
+    try:
+        ddb.create_table(
+            TableName=settings.dynamodb_user_profile_table,
+            KeySchema=[{"AttributeName": "user_id", "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": "user_id", "AttributeType": "S"}],
+            BillingMode="PAY_PER_REQUEST",
+        )
+        logger.info(f"Created table: {settings.dynamodb_user_profile_table}")
+    except ddb.exceptions.ResourceInUseException:
+        logger.info(f"Table already exists: {settings.dynamodb_user_profile_table}")
+
+
 def create_user_questions_table():
     """PK=uq_id — 퀴즈 풀이 중 사용자가 남긴 팔로업 질문 수집"""
     ddb = boto3.client("dynamodb", region_name=REGION)
@@ -195,14 +210,21 @@ def create_iam_role():
 
 if __name__ == "__main__":
     import sys
-    app_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+    app_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8002"
     logger.info(f"Setting up AWS resources in {REGION} (app_base_url={app_url})")
 
     create_s3_bucket()
     create_questions_table()
     create_schedule_table()
     create_user_questions_table()
+    create_user_profile_table()
     create_iam_role()
+
+    # Cognito는 이미 .env에 설정되어 있으면 재생성 안 함
+    if settings.cognito_user_pool_id:
+        logger.info("Cognito already configured in .env — skipping pool creation")
+        print("\n✅ DynamoDB 테이블/S3/IAM 업데이트 완료. Cognito는 기존 설정 유지.")
+        sys.exit(0)
 
     cognito = create_cognito_user_pool(app_url)
 

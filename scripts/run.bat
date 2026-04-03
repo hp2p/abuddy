@@ -1,0 +1,1 @@
+uv run uvicorn abuddy.main:app --reload --app-dir src --port 8002

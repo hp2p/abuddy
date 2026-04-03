@@ -6,38 +6,41 @@ from loguru import logger
 
 from abuddy.db import questions as qdb
 from abuddy.db import schedule as sdb
+from abuddy.db import user_profile as updb
 from abuddy.models.question import Question
 from abuddy.models.schedule import IntervalStep, ReviewSchedule
 from abuddy.services import concept_graph as cg
 
+_DUE_WEIGHT = 0.6  # 복습 문제 선택 확률
+
 
 def get_next_question(user_id: str) -> Question | None:
     """
-    우선순위:
-    1. DynamoDB에서 next_review_at <= now 인 문제 (10분 큐 포함)
-    2. 처음 보는 문제 (해당 유저의 schedule에 없는 문제)
+    복습 문제(due)와 새 문제를 랜덤하게 혼합해서 반환.
+    due 문제가 있으면 60% 확률로, 새 문제가 있으면 40% 확률로 선택.
+    한쪽만 있으면 그쪽에서 선택.
     """
-    # 1. due된 문제 (10분 리뷰 + 장기 복습 통합)
-    due_ids = sdb.get_due_question_ids(user_id, limit=10)
-    if due_ids:
-        qid = due_ids[0]  # 가장 오래된 것 먼저
-        q = qdb.get_question(qid)
-        if q:
-            logger.debug(f"[{user_id[:8]}] Due review: {qid[:8]}")
-            return q
+    due_ids = sdb.get_due_question_ids(user_id, limit=20)
 
-    # 2. 새 문제
     all_ids = qdb.list_all_question_ids()
     scheduled = sdb.get_scheduled_question_ids(user_id)
-    unscheduled = [qid for qid in all_ids if qid not in scheduled]
-    if unscheduled:
-        qid = random.choice(unscheduled)
-        q = qdb.get_question(qid)
-        if q:
-            logger.debug(f"[{user_id[:8]}] New question: {qid[:8]}")
-            return q
+    new_ids = [qid for qid in all_ids if qid not in scheduled]
 
-    return None
+    if due_ids and new_ids:
+        pool = due_ids if random.random() < _DUE_WEIGHT else new_ids
+    elif due_ids:
+        pool = due_ids
+    elif new_ids:
+        pool = new_ids
+    else:
+        return None
+
+    qid = random.choice(pool)
+    q = qdb.get_question(qid)
+    if q:
+        kind = "due" if qid in due_ids else "new"
+        logger.debug(f"[{user_id[:8]}] {kind}: {qid[:8]}")
+    return q
 
 
 def process_answer(
@@ -54,7 +57,7 @@ def process_answer(
 
     schedule = sdb.get_schedule(user_id, question.question_id)
     if schedule is None:
-        schedule = ReviewSchedule(question_id=question.question_id)
+        schedule = ReviewSchedule(question_id=question.question_id, domain=question.domain)
 
     if is_correct and not self_confirmed:
         # 정답이지만 불확실 → 10분 후 재확인 (advance는 하지 않음)
@@ -70,6 +73,7 @@ def process_answer(
         _queue_related_questions(user_id, question)
 
     sdb.put_schedule(user_id, schedule)
+    updb.update_activity(user_id)
     return is_correct, schedule
 
 
@@ -93,6 +97,7 @@ def _queue_related_questions(user_id: str, question: Question) -> None:
                 question_id=q.question_id,
                 interval_step=IntervalStep.IN_SESSION,
                 next_review_at=datetime.now() + timedelta(minutes=10),
+                domain=q.domain,
             )
             sdb.put_schedule(user_id, new_sched)
             logger.debug(f"[{user_id[:8]}] Queued related: {q.question_id[:8]} (concept: {cid})")

@@ -35,6 +35,7 @@ class ReviewSchedule(BaseModel):
     next_review_at: datetime = datetime.now()
     consecutive_correct: int = 0
     is_mastered: bool = False
+    domain: int = 0
 
     def advance(self, difficulty: Difficulty) -> "ReviewSchedule":
         """정답 처리: 다음 단계로 이동"""

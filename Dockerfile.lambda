@@ -1,0 +1,17 @@
+FROM --platform=linux/amd64 public.ecr.aws/lambda/python:3.12
+
+# uv 설치
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# 의존성 설치 (로컬 패키지 제외하고 외부 의존성만)
+COPY pyproject.toml uv.lock ./
+RUN uv export --no-dev --no-emit-workspace --format requirements-txt | pip install -r /dev/stdin
+
+# 소스 복사
+COPY src/ src/
+
+ENV PYTHONPATH=${LAMBDA_TASK_ROOT}/src
+
+CMD ["abuddy.main.handler"]

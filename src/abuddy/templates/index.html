@@ -2,32 +2,117 @@
 {% block title %}ABuddy — AWS GenAI Cert{% endblock %}
 
 {% block content %}
-<div class="text-center py-12">
-  <h1 class="text-3xl font-bold text-gray-800 mb-2">ABuddy</h1>
-  <p class="text-gray-500 mb-8">AWS Certified Generative AI Developer Professional (AIP-C01)</p>
+{% set today_pct = [((profile.today_answered / daily_goal) * 100), 100] | min %}
+{% set overall_pct = (stats.mastered / stats.total_scheduled * 100) | round(0) if stats.total_scheduled > 0 else 0 %}
 
-  <div class="grid grid-cols-3 gap-4 max-w-sm mx-auto mb-10 text-center">
-    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-      <div class="text-2xl font-bold text-orange-500">{{ stats.due_now }}</div>
-      <div class="text-xs text-gray-400 mt-1">복습 대기</div>
-    </div>
-    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-      <div class="text-2xl font-bold text-green-500">{{ stats.mastered }}</div>
-      <div class="text-xs text-gray-400 mt-1">마스터</div>
-    </div>
-    <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-      <div class="text-2xl font-bold text-gray-600">{{ question_count }}</div>
-      <div class="text-xs text-gray-400 mt-1">전체 문제</div>
-    </div>
+<div class="max-w-sm mx-auto py-4 space-y-3">
+
+  <div class="text-center pb-1">
+    <h1 class="text-2xl font-bold text-gray-800">ABuddy</h1>
+    <p class="text-gray-400 text-xs mt-0.5">AWS Certified Generative AI Developer Professional (AIP-C01)</p>
+  </div>
+
+  <!-- ① 동기부여 카드 + 문제 풀기 -->
+  <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+    <p class="text-xs font-semibold text-amber-700 mb-1">💡 이 내용을 공부하면 좋아요</p>
+    <p class="text-xs text-gray-600 leading-relaxed">{{ motivation.body }}</p>
+    <a href="{{ motivation.url }}" target="_blank"
+       class="mt-1.5 inline-block text-xs text-amber-600 hover:underline">
+      {{ motivation.source }} →
+    </a>
   </div>
 
   <a href="/quiz"
-     class="inline-block bg-orange-500 text-white px-10 py-3 rounded-2xl text-base font-semibold hover:bg-orange-600 transition-colors shadow-sm">
-    {% if stats.due_now > 0 %}
-      복습 시작 ({{ stats.due_now }}개)
-    {% else %}
-      문제 풀기
-    {% endif %}
+     class="block text-center bg-orange-500 text-white py-3 rounded-2xl font-semibold hover:bg-orange-600 transition-colors shadow-sm">
+    문제 풀기
   </a>
+
+  <!-- ② 연속학습 + 오늘의 목표 (한 row) -->
+  <div class="grid grid-cols-2 gap-3">
+    <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100 text-center">
+      <div class="text-xl font-bold text-orange-500">🔥 {{ profile.current_streak }}일</div>
+      <div class="text-xs text-gray-400 mt-0.5">연속 학습 중</div>
+      {% if profile.max_streak > 1 %}
+      <div class="text-xs text-gray-300 mt-0.5">최고 {{ profile.max_streak }}일</div>
+      {% endif %}
+    </div>
+    <div class="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+      <div class="flex justify-between items-center mb-1.5">
+        <span class="text-xs font-medium text-gray-600">🎯 오늘의 목표</span>
+        <span class="text-xs font-bold {% if profile.today_answered >= daily_goal %}text-green-500{% else %}text-orange-500{% endif %}">
+          {{ profile.today_answered }}/{{ daily_goal }}
+        </span>
+      </div>
+      <div class="w-full bg-gray-100 rounded-full h-2">
+        <div class="h-2 rounded-full transition-all {% if profile.today_answered >= daily_goal %}bg-green-400{% else %}bg-orange-400{% endif %}"
+             style="width: {{ today_pct | round(0) }}%"></div>
+      </div>
+      {% if profile.today_answered >= daily_goal %}
+      <p class="text-xs text-green-500 mt-1 text-right">달성!</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 도메인별 숙련도 (접힘/펼침) -->
+  <details class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <summary class="flex justify-between items-center px-3 py-2.5 cursor-pointer select-none list-none">
+      <span class="text-xs font-medium text-gray-700">📊 도메인별 숙련도</span>
+      <span class="text-xs font-bold text-green-600">전체 {{ overall_pct }}% ▾</span>
+    </summary>
+    <div class="px-3 pb-3 border-t border-gray-50 pt-2">
+      {% for d in domain_stats %}
+      {% set pct = ((d.mastered / d.total * 100) | round(0)) if d.total > 0 else 0 %}
+      <div class="mb-2">
+        <div class="flex justify-between text-xs text-gray-500 mb-0.5">
+          <span class="truncate pr-2">{{ loop.index }}. {{ d.title }}</span>
+          <span class="shrink-0 text-gray-400">{{ d.mastered }}/{{ d.total }}</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          <div class="bg-green-400 h-1.5 rounded-full" style="width: {{ pct }}%"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+
+  <!-- ③ 통계 4칸: 복습대기 / 마스터 / 전체문제 / 시험일 -->
+  <div class="grid grid-cols-4 gap-2">
+    <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
+      <div class="text-lg font-bold text-orange-500">{{ stats.due_now }}</div>
+      <div class="text-xs text-gray-400 leading-tight">복습<br>대기</div>
+    </div>
+    <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
+      <div class="text-lg font-bold text-green-500">{{ stats.mastered }}</div>
+      <div class="text-xs text-gray-400 leading-tight">마스터</div>
+    </div>
+    <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
+      <div class="text-lg font-bold text-gray-600">{{ question_count }}</div>
+      <div class="text-xs text-gray-400 leading-tight">전체<br>문제</div>
+    </div>
+    <div class="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
+      {% if days_remaining is not none %}
+        {% if days_remaining > 0 %}
+          <div class="text-lg font-bold text-blue-500">D-{{ days_remaining }}</div>
+          <div class="text-xs text-gray-400 leading-tight">시험까지</div>
+        {% elif days_remaining == 0 %}
+          <div class="text-lg font-bold text-red-500">D-0</div>
+          <div class="text-xs text-gray-400 leading-tight">오늘!</div>
+        {% else %}
+          <div class="text-lg font-bold text-green-500">완료</div>
+          <div class="text-xs text-gray-400 leading-tight">시험<br>종료</div>
+        {% endif %}
+      {% else %}
+        <form method="post" action="/set-exam-date" class="flex flex-col items-center gap-1">
+          <input type="date" name="exam_date"
+                 class="text-xs border border-gray-200 rounded px-1 py-0.5 w-full text-center focus:outline-none focus:border-orange-400">
+          <button type="submit"
+                  class="text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded hover:bg-orange-200 transition-colors">
+            시험일
+          </button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 {% endblock %}
