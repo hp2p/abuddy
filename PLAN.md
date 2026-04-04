@@ -46,21 +46,23 @@ uv run scripts/generate_questions.py --mode chunk
 
 ---
 
-## 미완성 / 예정
-
----
-
-## 다음 작업 목록 (우선순위 순)
+## 다음 작업 목록
 
 | # | 항목 | 설명 |
 |---|------|------|
 | 1 | **AWS / Claude 자격증 데이터 완전 분리** | 문제 은행·개념 그래프·스케줄 DB를 자격증별로 완전히 분리. 코드에서 시험 종류를 파라미터로 관리. |
 | 2 | **Claude 자격증 집중** | AWS AIP-C01 대신 Claude 자격증 중심으로 전환. 관련 시험 가이드·문제 생성 우선. |
-| 3 | **Claude 자격증 자료 다운로드 확인** | 수집된 문서 목록 검토, 누락 개념 재수집. |
-| 4 | **Claude 자료 구조화** | 개념 그래프·청크·요약 파이프라인을 Claude 자격증 자료에 맞게 재실행. |
-| 5 | **문제 이중 언어 생성** | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
-| 6 | **모바일 스타일 개선** | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
-| 7 | **음성 입력 지원** | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선, Groq 무료 Whisper API 병행 검토. |
+| 3 | **Claude 자료 구조화** | 개념 그래프·청크·요약 파이프라인을 Claude 자격증 자료에 맞게 재실행. |
+| TBD | **문제 전체 생성** | 현재 89개 → ~1,000개+. `generate_questions.py --mode summary/chunk` 전체 실행. |
+| TBD | **문제 이중 언어 생성** | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
+| TBD | **팔로업 질문 → 문제 배치 주기화** | `generate_from_user_questions.py` 주기 실행 방침 결정. |
+| TBD | **버그: 정답+불확실 문제 즉시 재출제** | `quiz_engine.py:62` — `interval_step=IN_SESSION`으로 저장돼 10분 후 due 재포함 → 방금 푼 문제 다시 출제 가능. |
+| TBD | **버그: self_confirmed 첫 정답 advance** | `quiz_engine.py:62` — `self_confirmed=True`이면 첫 정답에서도 advance. 최소 1회 10분 재확인 없이 넘어감. |
+| TBD | **DynamoDB scan 개선** | `list_all_question_ids()` full scan → pagination 처리 + 메모리 캐시. |
+| TBD | **모바일 스타일 개선** | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
+| TBD | **음성 입력 지원** | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선, Groq 무료 Whisper API 병행 검토. |
+| TBD | **리더보드** | 주간 풀이 수 기준 멀티유저 랭킹. |
+| TBD | **테스트** | pytest 설정 있으나 tests/ 없음. quiz_engine, schedule, bedrock 우선. |
 
 ---
 
@@ -154,14 +156,6 @@ generate_questions.py
 | `docker-compose.yml` | 로컬/EC2 Docker 실행 |
 | `pyproject.toml` | 의존성, ruff, pytest 설정 |
 
-| 항목 | 우선순위 | 설명 |
-|------|----------|------|
-| **문제 전체 생성** | 🔴 P0 | 현재 89개, summary+chunk 전체 실행하면 ~1,000개+ 예상 |
-| **팔로업 질문 → 문제 배치 주기화** | 🟡 P1 | `generate_from_user_questions.py` 주기 실행 방침 결정 |
-| **DynamoDB scan 개선** | 🟡 P1 | `list_all_question_ids()` full scan → 메모리 캐시 고려 |
-| **리더보드** | 🟡 P1 | 주간 풀이 수 기준 멀티유저 랭킹 |
-| **테스트** | 🟢 P2 | pytest 설정 있으나 tests/ 없음 |
-| **EC2 배포** | 🟢 P2 | `.env`, 보안 그룹 8002, `docker compose up -d` |
 
 ---
 

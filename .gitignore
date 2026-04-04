@@ -11,3 +11,6 @@ docs/
 dist/
 *.egg-info/
 .checkpoints
+
+# Anthropic 강의 자료 (저작권)
+CCA/
