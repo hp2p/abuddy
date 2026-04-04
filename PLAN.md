@@ -59,19 +59,19 @@ _마지막 업데이트: 2026-04-04 (5차)_
 
 | # | 항목 | 상태 | 설명 |
 |---|------|------|------|
-| 1 | **AWS / Claude 자격증 데이터 완전 분리** | ✅ 완료 | exam_id로 S3 경로·DynamoDB·스케줄 큐 완전 격리. `ACTIVE_EXAM` env var로 활성 자격증 전환. |
-| 2 | **Claude 자격증 집중 전환** | ✅ 완료 | CCA (Claude Certified Architect Foundations) 중심으로 전환. exam_id=`CCA`. |
-| 3 | **CCA 자료 구조화 및 docs 생성** | ✅ 완료 | 개념 그래프 seed + Skilljar 강의 기반 docs 186개 생성. `skilljar_to_docs.py` 신규 작성. |
-| 4 | **CCA 문제 전체 생성** | ✅ 완료 | summary 모드 ~744문제. `generate_questions.py --exam CCA` |
-| TBD | **문제 이중 언어 생성** | 미착수 | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
-| TBD | **팔로업 질문 → 문제 배치 주기화** | 미착수 | `generate_from_user_questions.py` 주기 실행 방침 결정. |
-| TBD | **버그: 정답+불확실 문제 즉시 재출제** | 미착수 | `quiz_engine.py` — `interval_step=IN_SESSION`으로 저장돼 10분 후 due 재포함 → 방금 푼 문제 다시 출제 가능. |
-| TBD | **버그: self_confirmed 첫 정답 advance** | 미착수 | `self_confirmed=True`이면 첫 정답에서도 advance. 최소 1회 10분 재확인 없이 넘어감. |
-| TBD | **DynamoDB scan 개선** | 미착수 | `list_all_question_ids()` full scan → pagination 처리 + 메모리 캐시. |
-| TBD | **모바일 스타일 개선** | 미착수 | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
-| TBD | **음성 입력 지원** | 미착수 | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선. |
+| 1 | **문제 이중 언어 생성** | 미착수 | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
+| 2 | **음성 입력 지원** | 미착수 | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선. |
+| 3 | **팔로업 질문 → 문제 배치 주기화** | 미착수 | `generate_from_user_questions.py` 주기 실행 방침 결정. |
 | TBD | **리더보드** | 미착수 | 주간 풀이 수 기준 멀티유저 랭킹. |
-| TBD | **테스트** | 미착수 | pytest 설정 있으나 tests/ 없음. quiz_engine, schedule, bedrock 우선. |
+| done | **AWS / Claude 자격증 데이터 완전 분리** | ✅ 완료 | exam_id로 S3 경로·DynamoDB·스케줄 큐 완전 격리. `ACTIVE_EXAM` env var로 활성 자격증 전환. |
+| done | **Claude 자격증 집중 전환** | ✅ 완료 | CCA (Claude Certified Architect Foundations) 중심으로 전환. exam_id=`CCA`. |
+| done | **CCA 자료 구조화 및 docs 생성** | ✅ 완료 | 개념 그래프 seed + Skilljar 강의 기반 docs 186개 생성. `skilljar_to_docs.py` 신규 작성. |
+| done | **CCA 문제 전체 생성** | ✅ 완료 | summary 모드 ~744문제. `generate_questions.py --exam CCA` |
+| done | **버그: 정답+불확실 문제 즉시 재출제** | ✅ 완료 | `quiz_engine.py` — `interval_step=IN_SESSION`으로 저장돼 10분 후 due 재포함 → 방금 푼 문제 다시 출제 가능. |
+| done | **버그: self_confirmed 첫 정답 advance** | ✅ 완료 | `self_confirmed=True`이면 첫 정답에서도 advance. 최소 1회 10분 재확인 없이 넘어감. |
+| done | **DynamoDB scan 개선** | ✅ 완료 | `list_all_question_ids()` full scan → pagination 처리 + 메모리 캐시. |
+| done | **모바일 스타일 개선** | ✅ 완료 | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
+| done | **테스트** | ✅ 완료 | pytest 설정 있으나 tests/ 없음. quiz_engine, schedule, bedrock 우선. |
 
 ---
 
