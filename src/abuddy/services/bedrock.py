@@ -461,6 +461,47 @@ def generate_question_from_user_question(
 
 
 # ──────────────────────────────────────────────
+# 문제 한글 번역 (1회성 배치, Sonnet 사용)
+# ──────────────────────────────────────────────
+
+_TRANSLATE_SYSTEM = """\
+You are a technical translator specializing in IT certification exam questions.
+Translate the given exam question from English to Korean.
+
+Rules:
+- Keep ALL technical terms, product names, and proper nouns in English (e.g. prompt caching, RAG, fine-tuning, Claude, Amazon Bedrock, MCP, API, SDK, JSON, HTTPS, IAM, S3, EC2, etc.)
+- Translate only the natural-language parts (verbs, conjunctions, explanations)
+- Preserve the original tone and exam style (formal, precise)
+- Always respond with valid JSON only, no markdown fences"""
+
+_TRANSLATE_TEMPLATE = """\
+Translate the following exam question to Korean. Keep technical terms in English.
+
+question_text: {question_text}
+options: {options}
+explanation: {explanation}
+
+Return JSON:
+{{
+  "question_text_ko": "...",
+  "options_ko": ["...", "...", "...", "..."],
+  "explanation_ko": "..."
+}}"""
+
+
+def translate_question(question_text: str, options: list[str], explanation: str) -> dict:
+    """문제·선택지·해설을 한국어로 번역. 기술 용어는 영어 유지."""
+    import json
+    prompt = _TRANSLATE_TEMPLATE.format(
+        question_text=question_text,
+        options=json.dumps(options, ensure_ascii=False),
+        explanation=explanation,
+    )
+    raw = _converse(settings.bedrock_smart_model_id, _TRANSLATE_SYSTEM, prompt, max_tokens=2048)
+    return orjson.loads(_strip_code_fence(raw))
+
+
+# ──────────────────────────────────────────────
 # 개념 그래프 초기 시드 생성 (1회성, Sonnet 사용)
 # ──────────────────────────────────────────────
 

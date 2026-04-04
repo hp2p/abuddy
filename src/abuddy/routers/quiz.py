@@ -1,5 +1,4 @@
 import json
-import random
 from datetime import date
 from pathlib import Path
 
@@ -19,16 +18,6 @@ from abuddy.services import quiz_engine as engine
 from abuddy.services.auth import NotAuthenticated, get_current_user, get_display_name
 from abuddy.services.concept_graph import get_concept, load_graph
 
-
-def _shuffle_options(question):
-    """선택지 순서를 랜덤하게 섞은 복사본과 original_indices(섞인위치→원본위치) 반환"""
-    indices = list(range(len(question.options)))
-    random.shuffle(indices)
-    shuffled_options = [question.options[i] for i in indices]
-    reverse_map = {old: new for new, old in enumerate(indices)}
-    new_correct = sorted(reverse_map[i] for i in question.correct_indices)
-    shuffled_q = question.model_copy(update={"options": shuffled_options, "correct_indices": new_correct})
-    return shuffled_q, indices
 
 
 _CARDS_PATH = Path(__file__).parent.parent / "data" / "motivation_cards.json"
@@ -175,6 +164,18 @@ async def set_exam_date(request: Request, exam_date: str = Form(...)):
     return RedirectResponse("/", status_code=303)
 
 
+@router.post("/set-lang", response_class=HTMLResponse)
+async def set_lang(request: Request, lang: str = Form(...)):
+    try:
+        user_id = get_current_user(request)
+    except NotAuthenticated:
+        return RedirectResponse("/auth/login")
+    if lang in ("en", "ko"):
+        updb.set_lang(user_id, lang)
+    referer = request.headers.get("referer", "/quiz")
+    return RedirectResponse(referer, status_code=303)
+
+
 # ─────────────────────────────────────────────
 # 다음 문제
 # ─────────────────────────────────────────────
@@ -187,14 +188,14 @@ async def quiz_page(request: Request):
         return templates.TemplateResponse(request, "no_questions.html")
 
     concept = get_concept(question.concept_id)
-    shuffled_q, original_indices = _shuffle_options(question)
+    profile = updb.get_profile(user_id)
     return templates.TemplateResponse(request, "quiz.html", {
-        "question": shuffled_q,
+        "question": question,
         "concept": concept,
         "labels": OPTION_LABELS,
-        "original_indices": original_indices,
         "stats": sdb.get_stats(user_id),
         "username": get_display_name(request),
+        "lang": profile.lang,
     })
 
 
@@ -211,7 +212,9 @@ async def submit_answer(request: Request, question_id: str):
     for key, val in form.multi_items():
         if key == "selected":
             try:
-                selected.append(int(val))
+                idx = int(val)
+                if idx >= 0:  # -1 = "I don't know" → 오답 처리
+                    selected.append(idx)
             except ValueError:
                 pass
     self_confirmed = form.get("self_confirmed") == "true"
@@ -222,6 +225,7 @@ async def submit_answer(request: Request, question_id: str):
 
     is_correct, schedule = engine.process_answer(user_id, question, selected, self_confirmed)
     concept = get_concept(question.concept_id)
+    profile = updb.get_profile(user_id)
 
     return templates.TemplateResponse(request, "partials/feedback.html", {
         "question": question,
@@ -230,6 +234,7 @@ async def submit_answer(request: Request, question_id: str):
         "selected_indices": selected,
         "is_correct": is_correct,
         "schedule": schedule,
+        "lang": profile.lang,
     })
 
 

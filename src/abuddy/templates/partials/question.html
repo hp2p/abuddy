@@ -21,10 +21,31 @@
     </span>
   </div>
 
+  <!-- 언어 전환 -->
+  <form method="post" action="/set-lang" class="inline flex items-center gap-1.5">
+    {% if lang == 'ko' %}
+      <input type="hidden" name="lang" value="en">
+      <button type="submit"
+              class="text-xs text-blue-500 border border-blue-200 rounded-full px-3 py-1 hover:bg-blue-50 transition-colors">
+        EN
+      </button>
+      {% if not question.question_text_ko %}
+        <span class="text-xs text-gray-300">번역 준비 중</span>
+      {% endif %}
+    {% else %}
+      <input type="hidden" name="lang" value="ko">
+      <button type="submit"
+              class="text-xs text-blue-500 border border-blue-200 rounded-full px-3 py-1 hover:bg-blue-50 transition-colors">
+        한국어
+      </button>
+    {% endif %}
+  </form>
+
   <!-- TTS 컨트롤 -->
   <div class="flex items-center gap-3">
     <label class="flex items-center gap-1.5 text-sm text-gray-400 cursor-pointer select-none">
-      <input type="checkbox" id="sentence-mode" class="accent-orange-500 w-4 h-4">
+      <input type="checkbox" id="sentence-mode" class="accent-orange-500 w-4 h-4"
+             onchange="localStorage.setItem('tts-sentence-mode', this.checked)">
       한 문장씩
     </label>
     <button type="button" id="tts-btn"
@@ -60,7 +81,10 @@
   <div class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
 
     <!-- 문제 텍스트 -->
-    <p id="question-text" class="text-lg font-medium text-gray-900 leading-relaxed mb-6 whitespace-pre-wrap">{{ question.question_text }}</p>
+    {% set show_ko = lang == 'ko' and question.question_text_ko %}
+    <p id="question-text" class="text-lg font-medium text-gray-900 leading-relaxed mb-6 whitespace-pre-wrap">
+      {{- question.question_text_ko if show_ko else question.question_text -}}
+    </p>
 
     <!-- 답변 폼 -->
     <form
@@ -70,13 +94,14 @@
       hx-indicator="#loading"
     >
       <div class="space-y-2.5 mb-6" id="options-list">
-        {% for i, option in enumerate(question.options) %}
+        {% set display_options = question.options_ko if (show_ko and question.options_ko) else question.options %}
+        {% for i, option in enumerate(display_options) %}
         <label class="flex items-start gap-3 min-h-[56px] p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-orange-300 hover:bg-orange-50 transition-colors">
           {% if question.question_type.value == 'multiple_response' %}
-          <input type="checkbox" name="selected" value="{{ original_indices[i] }}"
+          <input type="checkbox" name="selected" value="{{ i }}"
                  class="mt-0.5 accent-orange-500 w-5 h-5 flex-shrink-0">
           {% else %}
-          <input type="radio" name="selected" value="{{ original_indices[i] }}" required
+          <input type="radio" name="selected" value="{{ i }}" required
                  class="mt-0.5 accent-orange-500 w-5 h-5 flex-shrink-0">
           {% endif %}
           <span class="text-base text-gray-700 leading-relaxed">
@@ -84,6 +109,17 @@
           </span>
         </label>
         {% endfor %}
+        <!-- I don't know -->
+        <label class="flex items-start gap-3 min-h-[56px] p-4 rounded-xl border border-dashed border-gray-200 cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors mt-1">
+          {% if question.question_type.value == 'multiple_response' %}
+          <input type="checkbox" name="selected" value="-1"
+                 class="mt-0.5 accent-gray-400 w-5 h-5 flex-shrink-0" id="idk-checkbox">
+          {% else %}
+          <input type="radio" name="selected" value="-1"
+                 class="mt-0.5 accent-gray-400 w-5 h-5 flex-shrink-0" id="idk-radio">
+          {% endif %}
+          <span class="text-base text-gray-400 leading-relaxed italic">모르겠어요 (I don't know)</span>
+        </label>
       </div>
 
       <!-- 제출 -->
@@ -104,18 +140,28 @@
 </div>
 
 <script>
+// 한 문장씩 모드 복원
+(function() {
+  const cb = document.getElementById('sentence-mode');
+  if (cb) cb.checked = localStorage.getItem('tts-sentence-mode') === 'true';
+})();
+
+const TTS_LANG = '{{ "ko-KR" if lang == "ko" and question.question_text_ko else "en-US" }}';
+
 const tts = (function() {
   let _sentences = [];
   let _idx = 0;
   let _paused = false;
 
   function _splitSentences(text) {
-    const raw = text.match(/[^.!?]+[.!?]*/g) || [text];
+    // 한국어: 마침표/느낌표/물음표 + 줄바꿈 기준으로 분리
+    const raw = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+    const minLen = TTS_LANG === 'ko-KR' ? 10 : 20;
     const result = [];
     let buf = '';
     for (const s of raw) {
       buf += (buf ? ' ' : '') + s.trim();
-      if (buf.length > 20) { result.push(buf); buf = ''; }
+      if (buf.length > minLen) { result.push(buf); buf = ''; }
     }
     if (buf) result.push(buf);
     return result.filter(s => s.trim().length > 0);
@@ -175,8 +221,8 @@ const tts = (function() {
     _showCurrent(text, _idx, _sentences.length);
 
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'en-US';
-    u.rate = 0.9;
+    u.lang = TTS_LANG;
+    u.rate = TTS_LANG === 'ko-KR' ? 0.95 : 0.9;
 
     u.onend = () => {
       _idx++;

@@ -29,6 +29,9 @@ class Question(BaseModel):
     source: str = "generated"   # "official" | "generated"
     chunk_id: str = ""           # chunk 기반 문제일 때 설정 (concept_id_pX_cY)
     exam_id: str = "aip-c01"    # 자격증 종류 ("aip-c01" | "CCA")
+    question_text_ko: str = ""   # 한글 번역 (없으면 빈 문자열)
+    options_ko: list[str] = []   # 한글 선택지 (없으면 빈 리스트)
+    explanation_ko: str = ""     # 한글 해설 (없으면 빈 문자열)
 
 
 class AnswerSubmission(BaseModel):

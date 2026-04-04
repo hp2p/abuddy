@@ -31,6 +31,12 @@ uv run scripts/skilljar_to_docs.py --exam CCA           # 전체 실행
 uv run scripts/skilljar_to_docs.py --exam CCA --dry-run # 매칭 확인만
 uv run scripts/skilljar_to_docs.py --exam CCA --force   # 전체 재생성
 
+# 문제 한글 번역 (1회성, Bedrock Sonnet 사용)
+uv run scripts/translate_questions.py --exam CCA --limit 10  # 테스트 (10개)
+uv run scripts/translate_questions.py --exam CCA             # 전체 번역
+uv run scripts/translate_questions.py --exam aip-c01         # AIP-C01 번역
+uv run scripts/translate_questions.py --dry-run              # 번역 결과 미리보기
+
 # 문제 생성 (개념 그래프 생성 후)
 uv run scripts/generate_questions.py --exam aip-c01
 uv run scripts/generate_questions.py --exam aip-c01 --domain 1 --limit 5

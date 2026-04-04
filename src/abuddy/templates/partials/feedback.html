@@ -22,8 +22,10 @@
     </div>
 
     <!-- 선택지 결과 -->
+    {% set show_ko = lang == 'ko' and question.question_text_ko %}
+    {% set display_options = question.options_ko if (show_ko and question.options_ko) else question.options %}
     <div class="space-y-1.5 mb-4">
-      {% for i, option in enumerate(question.options) %}
+      {% for i, option in enumerate(display_options) %}
       <div class="flex items-start gap-2.5 text-sm py-2 px-3 rounded-xl
         {% if i in question.correct_indices %}bg-green-50 text-green-800
         {% elif i in selected_indices and i not in question.correct_indices %}bg-red-50 text-red-700
@@ -43,7 +45,9 @@
     <!-- 해설 -->
     <div class="bg-gray-50 rounded-xl p-4">
       <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">해설</p>
-      <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{{ question.explanation }}</p>
+      <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+        {{- question.explanation_ko if (show_ko and question.explanation_ko) else question.explanation -}}
+      </p>
     </div>
   </div>
 

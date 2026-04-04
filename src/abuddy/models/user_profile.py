@@ -9,3 +9,4 @@ class UserProfile(BaseModel):
     last_activity_date: str | None = None  # "YYYY-MM-DD"
     today_answered: int = 0
     today_date: str | None = None          # "YYYY-MM-DD"
+    lang: str = "en"                       # "en" | "ko"

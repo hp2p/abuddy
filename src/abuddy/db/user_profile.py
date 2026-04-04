@@ -25,6 +25,7 @@ def get_profile(user_id: str) -> UserProfile:
         last_activity_date=item.get("last_activity_date"),
         today_answered=int(item.get("today_answered", 0)),
         today_date=item.get("today_date"),
+        lang=item.get("lang", "en"),
     )
 
 
@@ -41,6 +42,8 @@ def put_profile(profile: UserProfile) -> None:
     if profile.today_date is not None:
         item["today_date"] = profile.today_date
         item["today_answered"] = profile.today_answered
+    if profile.lang != "en":
+        item["lang"] = profile.lang
     _table().put_item(Item=item)
 
 
@@ -73,6 +76,13 @@ def update_activity(user_id: str) -> UserProfile:
         "max_streak": max(new_streak, profile.max_streak),
         "last_activity_date": today,
     })
+    put_profile(profile)
+    return profile
+
+
+def set_lang(user_id: str, lang: str) -> UserProfile:
+    profile = get_profile(user_id)
+    profile = profile.model_copy(update={"lang": lang})
     put_profile(profile)
     return profile
 
