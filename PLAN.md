@@ -1,19 +1,19 @@
 # ABuddy — 프로젝트 컨텍스트 & 구현 계획
 
-_마지막 업데이트: 2026-03-29 (4차)_
+_마지막 업데이트: 2026-04-04 (5차)_
 
 ---
 
 ## 현재 상태 요약
 
-앱 완전 동작 중. 문제 은행 89개 저장 완료 (전체 생성 예정).
+앱 완전 동작 중. CCA 문제 생성 진행 중 (summary 모드, ~744문제 예정).
 
-**다음 실행할 것:**
-```bash
-# 전체 문제 생성 (이미 생성된 concept 자동 스킵)
-uv run scripts/generate_questions.py --mode summary
-uv run scripts/generate_questions.py --mode chunk
-```
+**활성 자격증**: `CCA` (Claude Certified Architect – Foundations)
+
+**데이터 현황**:
+- CCA 개념 그래프: 186 nodes, 243 edges (S3)
+- CCA docs: 186/186 완료 (Skilljar 강의 기반, S3)
+- CCA 문제: 생성 진행 중
 
 ---
 
@@ -26,6 +26,7 @@ uv run scripts/generate_questions.py --mode chunk
 - AI 팔로업 질문 (Bedrock Haiku)
 - 선택지 순서 매번 랜덤 셔플
 - 복습 문제 + 새 문제 60:40 랜덤 혼합 출제
+- **exam_id 격리**: 자격증별 문제/스케줄 완전 분리 (due 큐 포함)
 
 ### 동기부여 기능
 - 연속 학습 스트릭 (🔥 N일)
@@ -42,37 +43,39 @@ uv run scripts/generate_questions.py --mode chunk
 - DynamoDB 4개 테이블: questions / schedule / user-questions / user-profile
 - `setup_aws.py` 재실행 안전 (Cognito 기설정 시 스킵)
 - 서버 에러 토스트 알림 (HTMX + 500 에러 페이지)
-- Windows NSSM 서비스 등록 가능
+- **Lambda 배포** (`deploy_lambda.py`): Docker 이미지 → ECR → Lambda Function URL
+- **CloudFront** (`setup_cloudfront.py`): Lambda URL 앞단 + Cognito Callback URL 자동 업데이트
+
+### CCA 데이터 파이프라인 ✅
+- `seed_concept_graph.py --exam CCA`: claude-cert-exam-guide.json → 186개 concept 추출 → S3
+- `skilljar_to_docs.py`: CCA/skilljar/ 강의 MD → concept별 키워드 매칭 → Bedrock 요약 → S3
+  - Domain별 코스 매핑 하드코딩 (D1~D5)
+  - `--domain`, `--force`, `--dry-run`, `--concept-id` 옵션
+- `generate_questions.py --exam CCA`: summary 모드 ~744문제 생성 중
 
 ---
 
 ## 다음 작업 목록
 
-| # | 항목 | 설명 |
-|---|------|------|
-| 1 | **AWS / Claude 자격증 데이터 완전 분리** | 문제 은행·개념 그래프·스케줄 DB를 자격증별로 완전히 분리. 코드에서 시험 종류를 파라미터로 관리. |
-| 2 | **Claude 자격증 집중** | AWS AIP-C01 대신 Claude 자격증 중심으로 전환. 관련 시험 가이드·문제 생성 우선. |
-| 3 | **Claude 자료 구조화** | 개념 그래프·청크·요약 파이프라인을 Claude 자격증 자료에 맞게 재실행. |
-| TBD | **문제 전체 생성** | 현재 89개 → ~1,000개+. `generate_questions.py --mode summary/chunk` 전체 실행. |
-| TBD | **문제 이중 언어 생성** | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
-| TBD | **팔로업 질문 → 문제 배치 주기화** | `generate_from_user_questions.py` 주기 실행 방침 결정. |
-| TBD | **버그: 정답+불확실 문제 즉시 재출제** | `quiz_engine.py:62` — `interval_step=IN_SESSION`으로 저장돼 10분 후 due 재포함 → 방금 푼 문제 다시 출제 가능. |
-| TBD | **버그: self_confirmed 첫 정답 advance** | `quiz_engine.py:62` — `self_confirmed=True`이면 첫 정답에서도 advance. 최소 1회 10분 재확인 없이 넘어감. |
-| TBD | **DynamoDB scan 개선** | `list_all_question_ids()` full scan → pagination 처리 + 메모리 캐시. |
-| TBD | **모바일 스타일 개선** | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
-| TBD | **음성 입력 지원** | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선, Groq 무료 Whisper API 병행 검토. |
-| TBD | **리더보드** | 주간 풀이 수 기준 멀티유저 랭킹. |
-| TBD | **테스트** | pytest 설정 있으나 tests/ 없음. quiz_engine, schedule, bedrock 우선. |
+| # | 항목 | 상태 | 설명 |
+|---|------|------|------|
+| 1 | **AWS / Claude 자격증 데이터 완전 분리** | ✅ 완료 | exam_id로 S3 경로·DynamoDB·스케줄 큐 완전 격리. `ACTIVE_EXAM` env var로 활성 자격증 전환. |
+| 2 | **Claude 자격증 집중 전환** | ✅ 완료 | CCA (Claude Certified Architect Foundations) 중심으로 전환. exam_id=`CCA`. |
+| 3 | **CCA 자료 구조화 및 docs 생성** | ✅ 완료 | 개념 그래프 seed + Skilljar 강의 기반 docs 186개 생성. `skilljar_to_docs.py` 신규 작성. |
+| 4 | **CCA 문제 전체 생성** | ✅ 완료 | summary 모드 ~744문제. `generate_questions.py --exam CCA` |
+| TBD | **문제 이중 언어 생성** | 미착수 | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
+| TBD | **팔로업 질문 → 문제 배치 주기화** | 미착수 | `generate_from_user_questions.py` 주기 실행 방침 결정. |
+| TBD | **버그: 정답+불확실 문제 즉시 재출제** | 미착수 | `quiz_engine.py` — `interval_step=IN_SESSION`으로 저장돼 10분 후 due 재포함 → 방금 푼 문제 다시 출제 가능. |
+| TBD | **버그: self_confirmed 첫 정답 advance** | 미착수 | `self_confirmed=True`이면 첫 정답에서도 advance. 최소 1회 10분 재확인 없이 넘어감. |
+| TBD | **DynamoDB scan 개선** | 미착수 | `list_all_question_ids()` full scan → pagination 처리 + 메모리 캐시. |
+| TBD | **모바일 스타일 개선** | 미착수 | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
+| TBD | **음성 입력 지원** | 미착수 | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선. |
+| TBD | **리더보드** | 미착수 | 주간 풀이 수 기준 멀티유저 랭킹. |
+| TBD | **테스트** | 미착수 | pytest 설정 있으나 tests/ 없음. quiz_engine, schedule, bedrock 우선. |
 
 ---
 
----
-
-## 1. 프로젝트 개요
-
-**목적**: AWS Certified Generative AI Developer Professional (AIP-C01) 자격증 준비용 **멀티유저** 웹앱.
-**목표 시험**: AIP-C01 (2025-11 출시, 75문항, 750/1000점 합격)
-**예산**: ~$20/월
+## 아키텍처
 
 ### 기술 스택
 | 계층 | 선택 |
@@ -81,37 +84,70 @@ uv run scripts/generate_questions.py --mode chunk
 | 인증 | Cognito Hosted UI (OAuth2 authorization code flow) |
 | LLM | Bedrock Claude Sonnet (개념 추출, 요약, 문제 생성) + Haiku (팔로업 답변) |
 | 개념 그래프 | S3 JSON + networkx DiGraph (메모리 캐시) |
-| 문제 DB | DynamoDB `abuddy-questions` (PK=question_id) |
+| 문제 DB | DynamoDB `abuddy-questions` (PK=question_id, exam_id 속성으로 격리) |
 | 스케줄 DB | DynamoDB `abuddy-schedule` (PK=user_id, SK=question_id) |
-| 배포 | EC2 + Docker (ECS/Lambda 아님) |
+| 배포 | Lambda (Docker 이미지) + CloudFront |
 | 패키지 관리 | uv |
 | Lint | ruff |
 | 로깅 | loguru |
 
-### 핵심 아키텍처 흐름
-```
-seed_concept_graph.py
-  → aip-c01-exam-guide.json 로드
-  → Bedrock Sonnet으로 개념 추출
-  → S3 graph/concept_graph.json 저장
+### S3 저장 구조
 
-fetch_concept_docs.py
-  → Tavily로 docs.aws.amazon.com 검색 (concept당 3페이지)
-  → S3 docs/{concept_id}.json 저장 (pages + chunks + summary)
-  → Bedrock Sonnet으로 요약 생성 (24,000자 입력 → 300단어)
+```
+s3://abuddy-data/
+  CCA/
+    graph/concept_graph.json       ← 186 nodes, 243 edges
+    docs/{concept_id}.json         ← summary + chunks + pages (Skilljar 기반)
+  aip-c01/
+    graph/concept_graph.json
+    docs/{concept_id}.json         ← summary + chunks + pages (Tavily 기반)
+```
+
+**docs JSON 포맷**:
+```json
+{
+  "concept_id": "d1-agentic-loop",
+  "concept_name": "Agentic Loop",
+  "summary": "...(200-300 words, 시험 핵심 압축)...",
+  "chunks": [
+    {
+      "chunk_id": "d1-agentic-loop_p0_c0",
+      "page_index": 0,
+      "chunk_index": 0,
+      "heading": "...",
+      "content": "...(~800자)...",
+      "char_count": 650
+    }
+  ],
+  "pages": [
+    {"url": "https://anthropic.skilljar.com/...", "title": "...", "content": "..."}
+  ],
+  "fetched_at": "...",
+  "summarized_at": "...",
+  "chunked_at": "..."
+}
+```
+
+### 핵심 흐름
+
+```
+skilljar_to_docs.py (CCA)
+  → CCA/skilljar/{course}/*.md 로드
+  → concept별 키워드 매칭으로 레슨 선택
+  → Bedrock Sonnet으로 요약 생성
+  → S3 CCA/docs/{concept_id}.json 저장
 
 generate_questions.py
-  → S3에서 개념 그래프 + 문서(summary/chunks) 로드
-  → Bedrock Sonnet으로 MC/MR 문제 생성
-  → --mode summary: concept당 3문제 / --mode chunk: 청크당 1문제
-  → DynamoDB abuddy-questions 저장
+  → S3에서 개념 그래프 + docs(summary/chunks) 로드
+  → Bedrock Haiku로 MC/MR 문제 생성
+  → DynamoDB abuddy-questions 저장 (exam_id 태깅)
 
-웹앱 (uvicorn)
-  → / → 통계 대시보드
-  → /quiz → 다음 문제 (에빙하우스 우선순위)
+웹앱 (Lambda)
+  → /          → 통계 대시보드
+  → /quiz      → 다음 문제 (에빙하우스 우선순위, exam_id 격리)
   → POST /quiz/{id}/answer → 채점 + 스케줄 업데이트 (HTMX)
-  → POST /quiz/{id}/ask → 팔로업 질문 (Bedrock, HTMX)
-  → /stats → 진도 현황
+  → POST /quiz/{id}/ask   → 팔로업 질문 (Bedrock, HTMX)
+  → /stats     → 진도 현황
 ```
 
 ### 에빙하우스 스케줄 규칙
@@ -120,326 +156,42 @@ generate_questions.py
 - **정답+불확실**: 10분 후 재확인 (advance 없음)
 - **마스터**: EASY=2, MEDIUM=3, HARD=4 연속 정답 + self_confirmed=True
 
-### 문제 형식 (실제 시험 동일)
-- **Multiple Choice**: 4지선다, 1개 정답
-- **Multiple Response**: 5지선다, 2-3개 정답 ("Choose N answers." 포함)
-
 ---
 
-## 2. 현재 구현 상태
-
-### ✅ 완료
-| 파일 | 설명 |
-|------|------|
-| `src/abuddy/config.py` | pydantic-settings 환경변수 |
-| `src/abuddy/main.py` | FastAPI 앱, 라우터, 시작 시 개념 그래프 로드 |
-| `src/abuddy/models/question.py` | Question, QuestionType, Difficulty, AnswerSubmission |
-| `src/abuddy/models/schedule.py` | ReviewSchedule, IntervalStep, MASTERY_THRESHOLD |
-| `src/abuddy/models/concept.py` | Concept, ConceptEdge, ConceptGraph |
-| `src/abuddy/db/questions.py` | DynamoDB CRUD (put/get/list/count) |
-| `src/abuddy/db/schedule.py` | DynamoDB CRUD + get_due / get_scheduled / get_stats |
-| `src/abuddy/db/user_questions.py` | 팔로업 질문 저장 / 미처리 조회 / 처리 완료 표시 |
-| `src/abuddy/services/auth.py` | Cognito JWT 검증, JWKS 캐시, token exchange |
-| `src/abuddy/services/bedrock.py` | generate_question / answer_followup / generate_question_from_user_question / extract_concept_graph / summarize_doc_content / suggest_doc_urls |
-| `src/abuddy/services/concept_docs.py` | S3 doc 로드/저장, load_doc_content (summary), load_raw_pages |
-| `src/abuddy/services/concept_graph.py` | S3 로드/저장, networkx, get_related_concept_ids |
-| `src/abuddy/services/quiz_engine.py` | get_next_question, process_answer, _queue_related |
-| `src/abuddy/routers/auth.py` | /auth/login, /auth/callback, /auth/logout |
-| `src/abuddy/routers/quiz.py` | /, /quiz, /quiz/{id}/answer, /quiz/{id}/ask, /stats |
-| `scripts/setup_aws.py` | S3, DynamoDB, Cognito, IAM 초기화 |
-| `scripts/seed_concept_graph.py` | 시험 가이드 → 개념 그래프 추출 → S3 저장 |
-| `scripts/fetch_concept_docs.py` | Tavily로 AWS 문서 수집 → S3 저장 (259개 완료) |
-| `scripts/generate_questions.py` | 개념별 문제 생성 → DynamoDB 저장 |
-| `scripts/generate_from_user_questions.py` | 수집된 팔로업 질문 → 문제 은행 변환 배치 |
-| `README.md` | 사용자 가이드 + 운영자 가이드 (DynamoDB 스키마 포함) |
-| `aip-c01-exam-guide.json` | 시험 가이드 완전 구조화 JSON |
-| `docker-compose.yml` | 로컬/EC2 Docker 실행 |
-| `pyproject.toml` | 의존성, ruff, pytest 설정 |
-
-
----
-
-## 3. AWS 문서 파이프라인
-
-### S3 저장 구조
-
-**개념 그래프**: `s3://abuddy-data/graph/concept_graph.json`
-
-**개념별 문서**: `s3://abuddy-data/docs/{concept_id}.json`
-```json
-{
-  "concept_id": "d1-rag",
-  "concept_name": "RAG",
-  "summary": "...(200-300 words, 시험 핵심 압축)...",
-  "chunks": [
-    {
-      "chunk_id": "d1-rag_p0_c0",
-      "page_index": 0,
-      "chunk_index": 0,
-      "heading": "What is RAG",
-      "content": "...(~500-800자)...",
-      "char_count": 650
-    }
-  ],
-  "pages": [
-    {"url": "...", "title": "...", "content": "...최대 8000자..."}
-  ],
-  "fetched_at": "...",
-  "summarized_at": "...",
-  "chunked_at": "..."
-}
-```
-
-### 청킹 규칙
-- `##`, `###`, `####` heading 경계에서 분리
-- heading 없는 경우 빈 줄(단락) 경계로 fallback
-- 800자 초과 시 단락 경계에서 추가 분리
-- 작은 청크는 그대로 유지 (병합 없음)
-- 예상: 페이지당 ~12청크 × 3페이지 × 259 concept ≈ 9,300개 청크
-
-### 문제 생성 모드
-| 모드 | 기반 | 문제 수 | 성격 |
-|------|------|---------|------|
-| `summary` | 전체 요약 (~300 words) | 3문제/concept | 개념 전반 이해 |
-| `chunk` | 개별 청크 (~500-800자) | 1문제/chunk | 세부 사항 |
-| `all` | 둘 다 | summary+chunk | 전체 커버리지 |
-
-### 파이프라인 실행 순서
-```bash
-# 문서 수집 (완료 — 259개)
-uv run scripts/fetch_concept_docs.py
-
-# 청킹 (API 호출 없음)
-uv run scripts/fetch_concept_docs.py --chunk-only
-
-# 요약 (Bedrock Haiku 259회, ~$0.03)
-uv run scripts/fetch_concept_docs.py --summarize-only
-
-# summary 기반 문제 생성 (259 × 3 = 777문제)
-uv run scripts/generate_questions.py --mode summary
-
-# chunk 기반 문제 생성 (단계적 실행 권장)
-uv run scripts/generate_questions.py --mode chunk --domain 1
-```
-
----
-
-## 4. 구현 계획 (우선순위 순)
-
----
-
-### Phase 1: 앱 실행 가능 상태 만들기 (P0)
-
-#### Task 1-A: Dockerfile 작성
-```
-Dockerfile
-```
-- Python 3.12-slim 베이스
-- uv로 의존성 설치
-- 포트 8000 EXPOSE
-- uvicorn 실행
-
-#### Task 1-B: 정적 파일 설정
-```
-src/abuddy/static/
-  htmx.min.js         ← HTMX 2.x CDN 또는 로컬
-  style.css           ← 최소한의 스타일 (MVP 수준)
-```
-- FastAPI StaticFiles 마운트 추가 (`main.py`)
-
-#### Task 1-C: Jinja2 템플릿 작성
-```
-src/abuddy/templates/
-  base.html                      ← 공통 레이아웃 (nav, htmx CDN)
-  login.html                     ← Cognito 로그인 버튼
-  login_no_cognito.html          ← Cognito 미설정 시 안내
-  index.html                     ← 대시보드 (통계 요약 + 시작 버튼)
-  quiz.html                      ← 문제 표시 (MC/MR 분기)
-  no_questions.html              ← 문제 없을 때 안내
-  stats.html                     ← 진도 상세 통계
-  partials/
-    feedback.html                ← 채점 결과 (HTMX swap 타겟)
-    followup_answer.html         ← 팔로업 답변 (HTMX swap 타겟)
-```
-
-템플릿 상세 요구사항:
-
-**`base.html`**
-- HTMX 스크립트 로드
-- 네비게이션: 로고, /quiz 링크, /stats 링크, 로그아웃
-- `{% block content %}` 슬롯
-
-**`quiz.html`**
-- 문제 텍스트 표시
-- QuestionType에 따라 분기:
-  - MC: radio 버튼 (A/B/C/D)
-  - MR: checkbox (A/B/C/D/E) + "Choose N answers." 안내
-- 제출 버튼: `hx-post="/quiz/{id}/answer"` → `#feedback` 교체
-- 답변 전까지 팔로업 폼 숨김
-
-**`partials/feedback.html`**
-- 정답/오답 표시 (색상 구분)
-- 각 선택지 정답 여부 표시
-- 해설 (explanation) 출력
-- 다음 복습 예정 시간 (schedule.next_review_at)
-- self_confirmed 체크박스: `hx-post` → schedule advance
-- 팔로업 질문 폼: `hx-post="/quiz/{id}/ask"` → `#followup` 삽입
-- "다음 문제" 버튼: `hx-get="/quiz"` → 페이지 교체
-
-**`partials/followup_answer.html`**
-- 유저 질문 echo
-- Bedrock 답변 (markdown 렌더링 고려)
-- 추가 질문 폼 (반복 가능)
-
-**`index.html`**
-- 총 문제 수, 마스터 수, 오늘 due 수
-- "공부 시작" → /quiz 버튼
-
-**`stats.html`**
-- 전체/마스터/due/미시작 카운트
-- 도메인별 진도 (추후 확장)
-
----
-
-### Phase 2: 데이터 파이프라인 개선 (P1)
-
-#### Task 2-A: seed 스크립트 JSON 활용
-`scripts/seed_concept_graph.py` 수정:
-- `aip-c01-exam-guide.json` 로드 지원 추가
-- JSON의 `domains[].tasks[].skills[]` 구조에서 직접 개념 추출
-- 기존 .md 파싱 방식은 fallback으로 유지
-
-JSON → 개념 매핑 전략:
-- 각 `skill` → 1개 Concept 노드
-  - `concept_id`: `"d{domain}-t{task}-s{skill_id}"` (e.g. `"d1-t1.1-s1.1.1"`)
-  - `name`: skill description 첫 문장 요약 (Bedrock 불필요, 직접 파싱)
-  - `aws_services`: `techniques`에서 "Using {Service}" 패턴 추출
-  - `domain`: domain id
-- Task 단위 → Skill 간 `part_of` edge 자동 생성
-- 도메인 간 공통 서비스 → `similar_to` edge (선택)
-
-또는 기존처럼 Bedrock Sonnet에 JSON 청크를 전달해 개념 추출 (품질 우선).
-
-#### Task 2-B: DynamoDB scan 개선
-현재 `list_all_question_ids()`가 full scan → GSI 또는 캐시 고려:
-- `abuddy-questions` 테이블에 `domain` GSI 추가 (setup_aws.py 수정)
-- 또는 앱 시작 시 question_ids를 메모리 캐시
-
----
-
-### Phase 3: 품질 & 운영 (P2)
-
-#### Task 3-A: 테스트 작성
-```
-tests/
-  test_quiz_engine.py    ← process_answer, get_next_question (DynamoDB mock)
-  test_schedule.py       ← ReviewSchedule.advance, reset, mastery logic
-  test_bedrock.py        ← generate_question (Bedrock mock)
-```
-
-#### Task 3-B: EC2 배포
-1. EC2 인스턴스: t3.micro (Amazon Linux 2023)
-2. IAM 인스턴스 프로파일: `abuddy-ec2-role` (S3/DynamoDB/Bedrock)
-3. `.env` 파일 배포 방법 (Secrets Manager 또는 직접 scp)
-4. `docker compose up -d` 실행
-5. 보안 그룹: 포트 8000 오픈
-6. (선택) Nginx 리버스 프록시 + 도메인
-
-#### Task 3-C: 모니터링
-- CloudWatch 로그 그룹 (`/abuddy/app`)
-- 토큰 사용량 추적 (Bedrock Model Invocation Logs)
-- 예산 알림 ($20 임계)
-
----
-
-## 5. 시험 가이드 데이터 활용
-
-`aip-c01-exam-guide.json` 구조:
-```json
-{
-  "exam": { ... },
-  "domains": [
-    {
-      "id": 1, "weight_pct": 31,
-      "tasks": [
-        {
-          "id": "1.1",
-          "skills": [
-            {
-              "id": "1.1.1",
-              "description": "...",
-              "techniques": ["Using Amazon Bedrock", ...]
-            }
-          ]
-        }
-      ]
-    }
-  ],
-  "appendix": { ... }
-}
-```
-
-- **개념 추출 단위**: skill (총 ~60개 skills → ~60 concepts)
-- **문제 생성 계획**: skill당 MC 2개 + MR 1개 = **약 180문제**
-- **도메인별 가중치 반영**: 문제 수를 weight_pct에 비례 조정 가능
-
----
-
-## 6. 파일 구조 (목표 상태)
+## 파일 구조
 
 ```
 abuddy/
-├── aip-c01-exam-guide.json          ✅ 시험 가이드 구조화 JSON
-├── aip-c01-exam-guide-structured.md ✅ 원본 마크다운
+├── claude-cert-exam-guide.json      ✅ CCA 시험 가이드 JSON
+├── aip-c01-exam-guide.json          ✅ AIP-C01 시험 가이드 JSON
+├── CCA/skilljar/                    ✅ Skilljar 강의 MD/PDF (21개 코스)
 ├── docker-compose.yml               ✅
-├── Dockerfile                       ✅
+├── Dockerfile / Dockerfile.lambda   ✅
 ├── pyproject.toml                   ✅
 ├── CLAUDE.md                        ✅
 ├── PLAN.md                          ✅ 이 파일
 ├── .env / .env.example              ✅
 ├── scripts/
 │   ├── setup_aws.py                 ✅
-│   ├── seed_concept_graph.py        ✅
-│   ├── fetch_concept_docs.py        ✅
-│   ├── generate_questions.py        ✅
-│   ├── review_summaries.py          ✅
-│   └── generate_from_user_questions.py ✅
+│   ├── deploy_lambda.py             ✅ Lambda 배포 (ACTIVE_EXAM 포함)
+│   ├── setup_cloudfront.py          ✅
+│   ├── seed_concept_graph.py        ✅ --exam CCA / aip-c01
+│   ├── skilljar_to_docs.py          ✅ CCA Skilljar → S3 docs (신규)
+│   ├── fetch_concept_docs.py        ✅ Tavily → S3 docs (aip-c01용)
+│   ├── generate_questions.py        ✅ --exam CCA / aip-c01
+│   ├── generate_from_user_questions.py ✅
+│   ├── migrate_exam_id_claude_cert_to_CCA.py ✅ S3 경로 마이그레이션 (1회성)
+│   └── migrate_questions_exam_id.py ✅
 ├── src/abuddy/
-│   ├── config.py                    ✅
+│   ├── config.py                    ✅ ACTIVE_EXAM 지원
 │   ├── main.py                      ✅
 │   ├── models/                      ✅ question, schedule, concept
-│   ├── db/                          ✅ questions, schedule, user_questions
+│   ├── db/
+│   │   ├── questions.py             ✅ exam_id 격리
+│   │   └── schedule.py              ✅ exam_id 격리 (due/scheduled 필터)
 │   ├── services/                    ✅ auth, bedrock, concept_graph, concept_docs, quiz_engine
 │   ├── routers/                     ✅ auth, quiz
-│   ├── static/                      ✅ htmx.min.js, style.css
-│   └── templates/                   ✅ 전체 완료
-└── tests/                           ❌ → P2 작성 예정
-```
-
----
-
-## 7. 실행 순서 (처음 세팅 시)
-
-```bash
-# 1. 의존성 설치
-uv sync
-
-# 2. AWS 리소스 초기화 (최초 1회)
-uv run scripts/setup_aws.py http://YOUR_EC2_IP
-
-# 3. .env 설정 (Cognito 값 복사)
-cp .env.example .env
-# .env 편집
-
-# 4. 개념 그래프 생성 (Bedrock Sonnet, 최초 1회, ~5분)
-uv run scripts/seed_concept_graph.py
-
-# 5. 문제 생성 (Bedrock Haiku, ~180문제)
-uv run scripts/generate_questions.py
-
-# 6. 개발 서버
-uv run uvicorn abuddy.main:app --reload --app-dir src
-
-# 7. Docker 배포
-docker compose up --build
+│   ├── static/                      ✅
+│   └── templates/                   ✅
+└── tests/                           ❌ → 미착수
 ```

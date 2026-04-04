@@ -132,7 +132,7 @@ app = typer.Typer()
 @app.command()
 def main(
     force: bool = typer.Option(False, "--force", help="체크포인트 무시하고 전체 재실행"),
-    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, CCA)"),
+    exam: str = typer.Option("CCA", "--exam", help="자격증 ID (예: CCA, aip-c01)"),
     exam_guide: str = typer.Option("", "--exam-guide", help="시험 가이드 JSON 경로 (기본: {exam}-exam-guide.json)"),
 ):
     guide_path = Path(exam_guide) if exam_guide else Path(f"{exam}-exam-guide.json")
@@ -164,7 +164,7 @@ def main(
 
         logger.info(f"[{i}/{len(chunks)}] {chunk.label} 처리 중...")
         try:
-            result = extract_concept_graph_for_domain(chunk.domain, chunk.content)
+            result = extract_concept_graph_for_domain(chunk.domain, chunk.content, exam_id=exam)
             node_count = len(result.get("nodes", []))
             edge_count = len(result.get("edges", []))
             logger.info(f"[{i}/{len(chunks)}] 완료 — 노드 {node_count}개, 엣지 {edge_count}개")

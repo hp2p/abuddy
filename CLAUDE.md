@@ -20,11 +20,16 @@ uv run scripts/setup_aws.py http://YOUR_EC2_IP
 
 # 개념 그래프 생성 (최초 1회, Bedrock Sonnet 사용)
 uv run scripts/seed_concept_graph.py --exam aip-c01
-uv run scripts/seed_concept_graph.py --exam claude-cert --exam-guide claude-cert-exam-guide.json
+uv run scripts/seed_concept_graph.py --exam CCA --exam-guide CCA-exam-guide.json
 
 # 문서 수집 (Tavily)
 uv run scripts/fetch_concept_docs.py --exam aip-c01
-uv run scripts/fetch_concept_docs.py --exam claude-cert
+uv run scripts/fetch_concept_docs.py --exam CCA
+
+# 문서 수집 - Skilljar 강의 콘텐츠 → S3 docs (CCA 전용)
+uv run scripts/skilljar_to_docs.py --exam CCA           # 전체 실행
+uv run scripts/skilljar_to_docs.py --exam CCA --dry-run # 매칭 확인만
+uv run scripts/skilljar_to_docs.py --exam CCA --force   # 전체 재생성
 
 # 문제 생성 (개념 그래프 생성 후)
 uv run scripts/generate_questions.py --exam aip-c01
@@ -37,6 +42,11 @@ uv run scripts/generate_from_user_questions.py --limit 20 --dry-run
 # 기존 데이터 마이그레이션 (1회성, 기존 S3/DynamoDB 데이터에 exam_id 추가)
 uv run scripts/migrate_s3_exam_prefix.py                         # 드라이런
 uv run scripts/migrate_s3_exam_prefix.py --execute               # 실행
+
+# S3 exam_id 이름 변경: claude-cert/ → CCA/ (1회성)
+uv run scripts/migrate_exam_id_claude_cert_to_CCA.py             # 드라이런
+uv run scripts/migrate_exam_id_claude_cert_to_CCA.py --execute   # 실행
+uv run scripts/migrate_exam_id_claude_cert_to_CCA.py --execute --delete-old  # 실행 + 구버전 삭제
 uv run scripts/migrate_questions_exam_id.py                      # 드라이런
 uv run scripts/migrate_questions_exam_id.py --execute            # 실행
 

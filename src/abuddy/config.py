@@ -28,7 +28,7 @@ class Settings(BaseSettings):
 
     # 활성 자격증 (데이터 격리 키: S3 경로, 문제 필터링)
     # 예: "aip-c01" | "CCA"
-    active_exam: str = "aip-c01"
+    active_exam: str = "CCA"
 
     app_host: str = "0.0.0.0"
     app_port: int = 8002

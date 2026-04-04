@@ -27,11 +27,18 @@ from abuddy.services.concept_graph import get_all_concepts
 
 app = typer.Typer()
 
-# concept 전체 요약 기반: 개념 전반 이해를 테스트
-SUMMARY_PLANS = [
+# AIP-C01: summary 기반 (MC + MR)
+SUMMARY_PLANS_AIP = [
     (QuestionType.MULTIPLE_CHOICE, Difficulty.MEDIUM, 1),
     (QuestionType.MULTIPLE_CHOICE, Difficulty.HARD, 1),
     (QuestionType.MULTIPLE_RESPONSE, Difficulty.MEDIUM, 2),
+]
+
+# CCA: summary 기반 (MC only — CCA exam has no Multiple Response)
+SUMMARY_PLANS_CCA = [
+    (QuestionType.MULTIPLE_CHOICE, Difficulty.EASY, 1),
+    (QuestionType.MULTIPLE_CHOICE, Difficulty.MEDIUM, 1),
+    (QuestionType.MULTIPLE_CHOICE, Difficulty.HARD, 1),
 ]
 
 # 청크 기반: 특정 섹션의 세부 지식을 테스트 (청크당 1문제)
@@ -39,16 +46,19 @@ CHUNK_PLANS = [
     (QuestionType.MULTIPLE_CHOICE, Difficulty.MEDIUM, 1),
 ]
 
+# CCA 시나리오 난이도 플랜 (시나리오당 N문제)
+SCENARIO_DIFFICULTIES = [Difficulty.MEDIUM, Difficulty.HARD, Difficulty.HARD]
+
 
 @app.command()
 def main(
     domain: int = typer.Option(0, help="특정 도메인만 (0=전체)"),
     limit: int = typer.Option(0, help="최대 concept 수 (0=전체)"),
-    mode: str = typer.Option("summary", help="summary | chunk | all"),
-    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, CCA)"),
+    mode: str = typer.Option("summary", help="summary | chunk | all | scenario"),
+    exam: str = typer.Option("CCA", "--exam", help="자격증 ID (예: CCA, aip-c01)"),
 ):
-    if mode not in ("summary", "chunk", "all"):
-        logger.error("--mode는 summary / chunk / all 중 하나여야 합니다.")
+    if mode not in ("summary", "chunk", "all", "scenario"):
+        logger.error("--mode는 summary / chunk / all / scenario 중 하나여야 합니다.")
         raise typer.Exit(1)
 
     concepts = get_all_concepts(exam_id=exam)
@@ -57,8 +67,37 @@ def main(
     if limit:
         concepts = concepts[:limit]
 
+    summary_plans = SUMMARY_PLANS_CCA if exam == "CCA" else SUMMARY_PLANS_AIP
     logger.info(f"Generating questions for {len(concepts)} concepts (mode={mode}, exam={exam})...")
     total = errors = 0
+
+    # ── scenario 모드 (CCA 전용) ────────────────────────────
+    if mode == "scenario":
+        if exam != "CCA":
+            logger.error("--mode scenario는 CCA 전용입니다.")
+            raise typer.Exit(1)
+        import json, orjson
+        from pathlib import Path
+        guide = orjson.loads(Path("claude-cert-exam-guide.json").read_bytes())
+        scenarios = guide.get("scenarios", [])
+        logger.info(f"시나리오 {len(scenarios)}개 처리 중...")
+        for scenario in scenarios:
+            existing = qdb.list_questions_by_concept(f"scenario-{scenario['id']}", exam_id=exam)
+            existing_diffs = {q.difficulty for q in existing}
+            for difficulty in SCENARIO_DIFFICULTIES:
+                if difficulty in existing_diffs:
+                    logger.info(f"  [scenario-{scenario['id']}] {difficulty.value} 이미 존재, 스킵")
+                    continue
+                try:
+                    q = bedrock.generate_scenario_question(scenario, difficulty=difficulty, exam_id=exam)
+                    qdb.put_question(q)
+                    total += 1
+                    logger.info(f"  [scenario-{scenario['id']}] {scenario['title']} {difficulty.value} → {q.question_id[:8]}")
+                except Exception as e:
+                    errors += 1
+                    logger.error(f"  [scenario-{scenario['id']}] FAILED: {e}")
+        logger.info(f"Done. Generated {total} questions, {errors} errors.")
+        return
 
     for concept in concepts:
         # ── summary 모드 ────────────────────────────────────
@@ -68,14 +107,14 @@ def main(
             existing_summary = {(q.question_type, q.difficulty) for q in existing if not q.chunk_id}
             remaining_plans = [
                 (q_type, difficulty, num_correct)
-                for q_type, difficulty, num_correct in SUMMARY_PLANS
+                for q_type, difficulty, num_correct in summary_plans
                 if (q_type, difficulty) not in existing_summary
             ]
             if not remaining_plans:
                 logger.info(f"[{concept.name}] summary 문제 모두 존재, 스킵")
                 continue
-            if len(remaining_plans) < len(SUMMARY_PLANS):
-                logger.info(f"[{concept.name}] summary {len(existing_summary)}/{len(SUMMARY_PLANS)}개 존재, 나머지 {len(remaining_plans)}개 생성")
+            if len(remaining_plans) < len(summary_plans):
+                logger.info(f"[{concept.name}] summary {len(existing_summary)}/{len(summary_plans)}개 존재, 나머지 {len(remaining_plans)}개 생성")
             doc_content = load_doc_content(concept.concept_id, exam_id=exam)
             if doc_content:
                 logger.info(f"[{concept.name}] summary {len(doc_content)}자 로드")

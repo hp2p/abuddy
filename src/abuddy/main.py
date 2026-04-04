@@ -20,7 +20,7 @@ logger.remove()
 logger.add(sys.stderr, level="DEBUG", format="{time:HH:mm:ss} | {level:<8} | {message}")
 logger.add(str(_log_dir / "abuddy.log"), rotation="10 MB", retention="7 days", level="INFO")
 
-app = FastAPI(title="ABuddy — AWS GenAI Cert Study", version="0.1.0")
+app = FastAPI(title="ABuddy — AI Cert Study", version="0.1.0")
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 app.include_router(auth_router)
 app.include_router(quiz_router)

@@ -40,12 +40,26 @@ def _pick_motivation(user_id: str) -> dict:
     return MOTIVATION_CARDS[idx]
 
 
-DOMAIN_TITLES = {
-    1: "Foundation Model 통합·데이터 관리",
-    2: "구현 및 통합",
-    3: "AI 안전·보안·거버넌스",
-    4: "운영 효율화 및 최적화",
-    5: "테스트·검증·트러블슈팅",
+DOMAIN_TITLES: dict[str, dict[int, str]] = {
+    "CCA": {
+        1: "Agentic Architecture & Orchestration",
+        2: "Tool Design & MCP Integration",
+        3: "Claude Code Configuration & Workflows",
+        4: "Prompt Engineering & Structured Output",
+        5: "Context Management & Reliability",
+    },
+    "aip-c01": {
+        1: "Foundation Model 통합·데이터 관리",
+        2: "구현 및 통합",
+        3: "AI 안전·보안·거버넌스",
+        4: "운영 효율화 및 최적화",
+        5: "테스트·검증·트러블슈팅",
+    },
+}
+
+EXAM_DISPLAY_NAMES = {
+    "CCA": "Claude Certified Architect – Foundations",
+    "aip-c01": "AWS Certified AI Practitioner (AIP-C01)",
 }
 DAILY_GOAL = 5
 
@@ -106,10 +120,12 @@ def _user(request: Request) -> str:
 
 def _build_domain_stats(user_id: str) -> list[dict]:
     raw = sdb.get_domain_stats(user_id)
+    exam = settings.active_exam
+    titles = DOMAIN_TITLES.get(exam, DOMAIN_TITLES["aip-c01"])
     return [
         {
             "id": d,
-            "title": DOMAIN_TITLES[d],
+            "title": titles[d],
             "mastered": raw.get(d, {}).get("mastered", 0),
             "total": raw.get(d, {}).get("total", 0),
         }
@@ -134,6 +150,7 @@ async def index(request: Request):
         return RedirectResponse("/auth/login")
 
     profile = updb.get_profile(user_id)
+    exam = settings.active_exam
     return templates.TemplateResponse(request, "index.html", {
         "stats": sdb.get_stats(user_id),
         "question_count": qdb.question_count(),
@@ -143,6 +160,7 @@ async def index(request: Request):
         "domain_stats": _build_domain_stats(user_id),
         "motivation": _pick_motivation(user_id),
         "username": get_display_name(request),
+        "exam_display_name": EXAM_DISPLAY_NAMES.get(exam, exam),
     })
 
 

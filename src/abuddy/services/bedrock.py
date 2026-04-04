@@ -41,13 +41,19 @@ def _strip_code_fence(raw: str) -> str:
 # 문제 생성
 # ──────────────────────────────────────────────
 
-_QUESTION_SYSTEM = """\
+_QUESTION_SYSTEM_AIP = """\
 You are an expert AWS exam question writer specializing in the AWS Certified \
 Generative AI Developer Professional (AIP-C01) exam.
 Write questions that match the exact style, difficulty, and format of actual AWS certification exams.
 Always respond with valid JSON only, no markdown fences."""
 
-_MC_TEMPLATE = """\
+_QUESTION_SYSTEM_CCA = """\
+You are an expert exam question writer specializing in the Claude Certified Architect – Foundations (CCA-F) exam.
+Write questions that match the exact style, difficulty, and format of the actual CCA-F certification exam.
+Questions should focus on Claude APIs, Agent SDK, MCP, prompt engineering, and Claude Code — not AWS services.
+Always respond with valid JSON only, no markdown fences."""
+
+_MC_TEMPLATE_AIP = """\
 Concept: {concept_name}
 Description: {description}
 Related AWS services: {services}
@@ -71,7 +77,31 @@ Rules:
 - Explanation must reference the AWS official recommendation
 - For Professional-level: scenario-based questions preferred"""
 
-_MR_TEMPLATE = """\
+_MC_TEMPLATE_CCA = """\
+Concept: {concept_name}
+Description: {description}
+Difficulty: {difficulty}
+Domain: {domain}
+{doc_section}
+Write one MULTIPLE CHOICE question (4 options A–D, exactly 1 correct answer).
+
+Return JSON:
+{{
+  "question_text": "...",
+  "options": ["option text A", "option text B", "option text C", "option text D"],
+  "correct_indices": [0],
+  "explanation": "...",
+  "difficulty": "easy|medium|hard"
+}}
+
+Rules:
+- Options must not include A./B./C./D. prefix — plain text only
+- Distractors must be plausible alternatives based on Claude/Anthropic concepts
+- Explanation must reference the Anthropic official documentation or Claude best practices
+- Scenario-based questions preferred (e.g. "A developer is building an agent with Claude...")
+- Do NOT mention AWS services unless directly relevant to the concept"""
+
+_MR_TEMPLATE_AIP = """\
 Concept: {concept_name}
 Description: {description}
 Related AWS services: {services}
@@ -91,6 +121,29 @@ Return JSON:
   "difficulty": "easy|medium|hard"
 }}"""
 
+_MR_TEMPLATE_CCA = """\
+Concept: {concept_name}
+Description: {description}
+Difficulty: {difficulty}
+Domain: {domain}
+Number of correct answers: {num_correct}
+{doc_section}
+
+Write one MULTIPLE RESPONSE question (5 options A–E, exactly {num_correct} correct answers).
+
+Return JSON:
+{{
+  "question_text": "A developer is building... (include 'Choose {num_correct} answers.' at the end)",
+  "options": ["option A", "option B", "option C", "option D", "option E"],
+  "correct_indices": [0, 1],
+  "explanation": "...",
+  "difficulty": "easy|medium|hard"
+}}
+
+Rules:
+- Do NOT mention AWS services unless directly relevant to the concept
+- Distractors must be plausible Claude/Anthropic concepts"""
+
 
 def generate_question(
     concept: Concept,
@@ -100,41 +153,51 @@ def generate_question(
     doc_content: str = "",
     chunk_heading: str = "",
     chunk_id: str = "",
-    exam_id: str = "aip-c01",
+    exam_id: str = "CCA",
 ) -> Question:
-    services_str = ", ".join(concept.aws_services) if concept.aws_services else "various AWS services"
+    is_cca = exam_id == "CCA"
+    system = _QUESTION_SYSTEM_CCA if is_cca else _QUESTION_SYSTEM_AIP
+    mc_template = _MC_TEMPLATE_CCA if is_cca else _MC_TEMPLATE_AIP
+    mr_template = _MR_TEMPLATE_CCA if is_cca else _MR_TEMPLATE_AIP
+    doc_label = "Reference Material" if is_cca else "AWS Documentation Reference"
+
+    services_str = ", ".join(concept.aws_services) if concept.aws_services else ""
     if doc_content and chunk_heading:
         doc_section = (
-            f"AWS Documentation Reference (Section: {chunk_heading}):\n"
+            f"{doc_label} (Section: {chunk_heading}):\n"
             f"{doc_content[:2000]}\n"
             f"Focus this question specifically on the '{chunk_heading}' topic.\n"
         )
     elif doc_content:
-        doc_section = f"AWS Documentation Reference:\n{doc_content[:2000]}\n"
+        doc_section = f"{doc_label}:\n{doc_content[:2000]}\n"
     else:
         doc_section = ""
 
     if question_type == QuestionType.MULTIPLE_CHOICE:
-        prompt = _MC_TEMPLATE.format(
+        fmt = dict(
             concept_name=concept.name,
             description=concept.description,
-            services=services_str,
             difficulty=difficulty.value,
             domain=concept.domain,
             doc_section=doc_section,
         )
+        if not is_cca:
+            fmt["services"] = services_str or "various AWS services"
+        prompt = mc_template.format(**fmt)
     else:
-        prompt = _MR_TEMPLATE.format(
+        fmt = dict(
             concept_name=concept.name,
             description=concept.description,
-            services=services_str,
             difficulty=difficulty.value,
             domain=concept.domain,
             num_correct=num_correct,
             doc_section=doc_section,
         )
+        if not is_cca:
+            fmt["services"] = services_str or "various AWS services"
+        prompt = mr_template.format(**fmt)
 
-    raw = _converse(settings.bedrock_smart_model_id, _QUESTION_SYSTEM, prompt)
+    raw = _converse(settings.bedrock_smart_model_id, system, prompt)
     logger.debug(f"Bedrock raw response: {raw[:200]}")
 
     data = orjson.loads(_strip_code_fence(raw))
@@ -150,6 +213,73 @@ def generate_question(
         explanation=data["explanation"],
         source="generated",
         chunk_id=chunk_id,
+        exam_id=exam_id,
+    )
+
+
+# ──────────────────────────────────────────────
+# CCA 시나리오 문제 생성
+# ──────────────────────────────────────────────
+
+_SCENARIO_SYSTEM = """\
+You are an expert exam question writer specializing in the Claude Certified Architect – Foundations (CCA-F) exam.
+Write scenario-based Multiple Choice questions that test architectural decision-making with Claude APIs.
+Always respond with valid JSON only, no markdown fences."""
+
+_SCENARIO_TEMPLATE = """\
+Scenario: {scenario_title}
+Description: {scenario_description}
+Key skills tested: {key_skills}
+Difficulty: {difficulty}
+
+Write one MULTIPLE CHOICE question (4 options A–D, exactly 1 correct answer) that:
+- Is grounded in the scenario context above
+- Tests one of the key skills listed
+- Presents a realistic architectural decision or implementation choice
+
+Return JSON:
+{{
+  "question_text": "...(reference the scenario context)...",
+  "options": ["option A", "option B", "option C", "option D"],
+  "correct_indices": [0],
+  "explanation": "...",
+  "difficulty": "easy|medium|hard"
+}}
+
+Rules:
+- Options must not include A./B./C./D. prefix — plain text only
+- Distractors must represent common architectural mistakes or anti-patterns
+- Do NOT mention AWS services unless directly relevant"""
+
+
+def generate_scenario_question(
+    scenario: dict,
+    difficulty: Difficulty = Difficulty.HARD,
+    exam_id: str = "CCA",
+) -> Question:
+    """CCA 시나리오 기반 MC 문제 생성."""
+    prompt = _SCENARIO_TEMPLATE.format(
+        scenario_title=scenario["title"],
+        scenario_description=scenario["description"],
+        key_skills=", ".join(scenario.get("key_skills", [])),
+        difficulty=difficulty.value,
+    )
+    raw = _converse(settings.bedrock_smart_model_id, _SCENARIO_SYSTEM, prompt)
+    data = orjson.loads(_strip_code_fence(raw))
+    concept_id = f"scenario-{scenario['id']}"
+    domain = scenario.get("primary_domains", [0])[0]
+    return Question(
+        concept_id=concept_id,
+        domain=domain,
+        difficulty=Difficulty(data.get("difficulty", difficulty.value)),
+        question_type=QuestionType.MULTIPLE_CHOICE,
+        question_text=data["question_text"],
+        options=data["options"],
+        correct_indices=data["correct_indices"],
+        num_correct=1,
+        explanation=data["explanation"],
+        source="generated",
+        chunk_id="",
         exam_id=exam_id,
     )
 
@@ -233,7 +363,14 @@ def suggest_doc_urls(concept: Concept) -> list[str]:
 # 팔로업 질문 답변
 # ──────────────────────────────────────────────
 
-_FOLLOWUP_SYSTEM = """\
+_FOLLOWUP_SYSTEM_CCA = """\
+You are a Claude/Anthropic expert helping a developer prepare for the \
+Claude Certified Architect Foundations (CCA) exam.
+Answer concisely and practically. Focus on exam-relevant knowledge about Claude, \
+Claude Code, MCP, prompt engineering, and the Anthropic ecosystem.
+Respond in Korean if the question is in Korean, otherwise English."""
+
+_FOLLOWUP_SYSTEM_AIP = """\
 You are an AWS expert helping a developer prepare for the AWS Certified \
 Generative AI Developer Professional exam.
 Answer concisely and practically. Focus on exam-relevant knowledge.
@@ -245,6 +382,7 @@ def answer_followup(
     question_text: str,
     correct_answer_text: str,
     user_question: str,
+    exam_id: str | None = None,
 ) -> str:
     prompt = f"""\
 Exam concept: {concept_name}
@@ -253,7 +391,9 @@ Correct answer explanation: {correct_answer_text}
 User's follow-up question: {user_question}
 
 Answer the follow-up question clearly."""
-    return _converse(settings.bedrock_model_id, _FOLLOWUP_SYSTEM, prompt, max_tokens=512)
+    eid = exam_id or settings.active_exam
+    system = _FOLLOWUP_SYSTEM_CCA if eid == "CCA" else _FOLLOWUP_SYSTEM_AIP
+    return _converse(settings.bedrock_model_id, system, prompt, max_tokens=512)
 
 
 # ──────────────────────────────────────────────
@@ -261,8 +401,7 @@ Answer the follow-up question clearly."""
 # ──────────────────────────────────────────────
 
 _USER_QUESTION_SYSTEM = """\
-You are an expert AWS exam question writer specializing in the AWS Certified \
-Generative AI Developer Professional (AIP-C01) exam.
+You are an expert AI certification exam question writer.
 A student asked a follow-up question while studying. Use their question as inspiration \
 to create one realistic exam question that tests the same knowledge area.
 Always respond with valid JSON only, no markdown fences."""
@@ -287,8 +426,8 @@ Return JSON:
 
 Rules:
 - Options must not include A./B./C./D. prefix
-- Distractors must be plausible (real AWS services or real concepts)
-- Explanation must reference the AWS official recommendation"""
+- Distractors must be plausible (real concepts or tools in this domain)
+- Explanation must be accurate and reference established best practices"""
 
 
 def generate_question_from_user_question(
@@ -326,13 +465,12 @@ def generate_question_from_user_question(
 # ──────────────────────────────────────────────
 
 _GRAPH_SYSTEM = """\
-You are an AWS certification expert. Extract concepts and their relationships \
-from AWS exam guide content.
+You are an AI certification expert. Extract concepts and their relationships \
+from exam guide content.
 Respond with valid JSON only, no markdown fences."""
 
 _GRAPH_PROMPT = """\
-Below is Domain {domain_num} content from the AWS Certified Generative AI Developer \
-Professional (AIP-C01) exam guide.
+Below is Domain {domain_num} content from the {exam_name} exam guide.
 
 {content}
 
@@ -344,8 +482,7 @@ Extract ALL distinct concepts from this domain. Return JSON:
       "name": "Human readable name",
       "domain": {domain_num},
       "description": "One sentence description",
-      "aws_services": ["Amazon Bedrock", "..."],
-      "tags": ["rag", "retrieval", "..."]
+      "tags": ["tag1", "tag2", "..."]
     }}
   ],
   "edges": [
@@ -363,13 +500,22 @@ Rules:
 - source_id and target_id must reference concept_ids in nodes above
 - Extract 8-15 concepts for this domain"""
 
+_EXAM_DISPLAY_NAMES = {
+    "CCA": "Claude Certified Architect Foundations (CCA)",
+    "aip-c01": "AWS Certified Generative AI Developer Professional (AIP-C01)",
+}
 
-def extract_concept_graph_for_domain(domain_num: int, content: str) -> dict:
+
+def extract_concept_graph_for_domain(domain_num: int, content: str, exam_id: str = "CCA") -> dict:
     """단일 도메인 콘텐츠에서 개념 추출 (timeout 300s)"""
     raw = _converse(
         settings.bedrock_smart_model_id,
         _GRAPH_SYSTEM,
-        _GRAPH_PROMPT.format(domain_num=domain_num, content=content[:15000]),
+        _GRAPH_PROMPT.format(
+            domain_num=domain_num,
+            content=content[:15000],
+            exam_name=_EXAM_DISPLAY_NAMES.get(exam_id, exam_id),
+        ),
         max_tokens=4096,
         read_timeout=300,
     )

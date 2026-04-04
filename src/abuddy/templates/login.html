@@ -4,13 +4,13 @@
 {% block content %}
 <div class="max-w-sm mx-auto text-center py-16">
   <h1 class="text-2xl font-bold text-gray-800 mb-2">ABuddy</h1>
-  <p class="text-gray-500 text-sm mb-10">AWS Certified Generative AI Developer Professional</p>
+  <p class="text-gray-500 text-sm mb-10">AI 자격증 스페이스드 리피티션 학습</p>
 
   <a href="{{ cognito_url }}"
      class="block w-full bg-orange-500 text-white py-3 rounded-2xl font-semibold hover:bg-orange-600 transition-colors shadow-sm">
-    AWS 계정으로 로그인
+    로그인
   </a>
-  <p class="mt-4 text-xs text-gray-400">Amazon Cognito로 안전하게 인증합니다</p>
+  <p class="mt-4 text-xs text-gray-400">Cognito로 안전하게 인증합니다</p>
 
   {% if request.query_params.get('error') %}
   <div class="mt-6 text-sm text-red-500 bg-red-50 rounded-xl p-3">
