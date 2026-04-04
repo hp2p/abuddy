@@ -27,7 +27,7 @@ from abuddy.services.bedrock import extract_concept_graph_for_domain
 from abuddy.services.concept_graph import save_graph
 
 EXAM_GUIDE_JSON = Path("aip-c01-exam-guide.json")
-CHECKPOINT_DIR = Path(".checkpoints")
+CHECKPOINT_DIR = Path(".checkpoints/aip-c01")
 
 
 @dataclass
@@ -140,8 +140,9 @@ def main(
         logger.error(f"{guide_path} 파일이 없습니다.")
         raise typer.Exit(1)
 
-    global EXAM_GUIDE_JSON
+    global EXAM_GUIDE_JSON, CHECKPOINT_DIR
     EXAM_GUIDE_JSON = guide_path
+    CHECKPOINT_DIR = Path(f".checkpoints/{exam}")
 
     if force:
         clear_checkpoints()

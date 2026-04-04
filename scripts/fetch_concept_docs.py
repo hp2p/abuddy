@@ -39,12 +39,18 @@ _BEDROCK_DELAY = 0.5  # Bedrock 요청 간격 (초)
 _MAX_RESULTS = 3      # concept당 최대 수집 페이지 수
 _MAX_CONTENT_CHARS = 8000  # 페이지당 저장할 최대 글자 수
 
+_SOURCE_DOMAINS = {
+    "aws": ["docs.aws.amazon.com"],
+    "anthropic": ["docs.anthropic.com"],
+}
 
-def _search_aws_docs(concept_name: str, services: list[str], client: httpx.Client) -> list[dict]:
-    """Tavily로 docs.aws.amazon.com 검색, [{url, title, content}] 반환."""
+
+def _search_docs(concept_name: str, services: list[str], client: httpx.Client, source: str) -> list[dict]:
+    """Tavily로 지정된 도메인 검색, [{url, title, content}] 반환."""
     services_str = " ".join(services[:2]) if services else ""
     query = f"{concept_name} {services_str}".strip()
-    logger.info(f"  쿼리: {query}")
+    include_domains = _SOURCE_DOMAINS.get(source, _SOURCE_DOMAINS["aws"])
+    logger.info(f"  쿼리: {query} (source={source}, domains={include_domains})")
 
     try:
         r = client.post(
@@ -53,7 +59,7 @@ def _search_aws_docs(concept_name: str, services: list[str], client: httpx.Clien
                 "api_key": settings.tavily_api_key,
                 "query": query,
                 "search_depth": "advanced",
-                "include_domains": ["docs.aws.amazon.com"],
+                "include_domains": include_domains,
                 "include_raw_content": False,
                 "max_results": _MAX_RESULTS,
             },
@@ -80,6 +86,12 @@ def _search_aws_docs(concept_name: str, services: list[str], client: httpx.Clien
     return pages
 
 
+_EXAM_DEFAULT_SOURCE = {
+    "aip-c01": "aws",
+    "claude-cert": "anthropic",
+}
+
+
 @app.command()
 def main(
     force: bool = typer.Option(False, "--force", help="이미 수집된 것도 재처리"),
@@ -88,10 +100,17 @@ def main(
     chunk_only: bool = typer.Option(False, "--chunk-only", help="수집/요약 스킵, 청킹만 추가"),
     summarize_only: bool = typer.Option(False, "--summarize-only", help="수집/청킹 스킵, 요약만 추가"),
     exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, claude-cert)"),
+    source: str = typer.Option("", "--source", help="문서 소스: aws (docs.aws.amazon.com) | anthropic (docs.anthropic.com). 기본값은 exam에 따라 자동 선택"),
 ):
     if chunk_only and summarize_only:
         logger.error("--chunk-only와 --summarize-only는 동시에 사용할 수 없습니다.")
         raise typer.Exit(1)
+
+    if source and source not in _SOURCE_DOMAINS:
+        logger.error(f"--source는 {list(_SOURCE_DOMAINS.keys())} 중 하나여야 합니다.")
+        raise typer.Exit(1)
+    resolved_source = source or _EXAM_DEFAULT_SOURCE.get(exam, "aws")
+    logger.info(f"문서 소스: {resolved_source} ({_SOURCE_DOMAINS[resolved_source]})")
 
     if not (chunk_only or summarize_only) and not settings.tavily_api_key:
         logger.error("TAVILY_API_KEY가 설정되지 않았습니다. .env를 확인하세요.")
@@ -105,7 +124,7 @@ def main(
             raise typer.Exit(1)
 
     mode = "chunk-only" if chunk_only else "summarize-only" if summarize_only else "full"
-    logger.info(f"총 {len(concepts)}개 concept 처리 시작 (mode={mode}, exam={exam})")
+    logger.info(f"총 {len(concepts)}개 concept 처리 시작 (mode={mode}, exam={exam}, source={resolved_source})")
     ok = skipped = errors = 0
 
     with httpx.Client(timeout=30) as client:
@@ -165,7 +184,7 @@ def main(
                 skipped += 1
                 continue
 
-            pages = _search_aws_docs(concept.name, concept.aws_services, client)
+            pages = _search_docs(concept.name, concept.aws_services, client, resolved_source)
             if not pages:
                 logger.warning("  검색 결과 없음")
                 errors += 1
