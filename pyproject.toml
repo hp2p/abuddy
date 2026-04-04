@@ -49,3 +49,6 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: DynamoDB/AWS 접근이 필요한 통합 테스트 (uv run pytest -m integration)",
+]

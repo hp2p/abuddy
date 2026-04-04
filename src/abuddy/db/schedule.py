@@ -52,6 +52,13 @@ def get_schedule(user_id: str, question_id: str) -> ReviewSchedule | None:
 
 def get_due_question_ids(user_id: str, limit: int = 20, exam_id: str | None = None) -> list[str]:
     """next_review_at <= now 이고 미마스터인 문제 (10분 큐 포함). exam_id로 시험 격리."""
+    return [qid for qid, _ in get_due_items(user_id, limit=limit, exam_id=exam_id)]
+
+
+def get_due_items(
+    user_id: str, limit: int = 20, exam_id: str | None = None
+) -> list[tuple[str, "IntervalStep"]]:
+    """due 문제를 (question_id, interval_step) 튜플 리스트로 반환. exam_id로 시험 격리."""
     from abuddy.db import questions as qdb
     now_ts = Decimal(str(datetime.now().timestamp()))
     resp = _table().query(
@@ -64,11 +71,11 @@ def get_due_question_ids(user_id: str, limit: int = 20, exam_id: str | None = No
         },
     )
     items = sorted(resp.get("Items", []), key=lambda x: x["next_review_at"])
-    ids = [i["question_id"] for i in items]
+    pairs = [(i["question_id"], IntervalStep(int(i["interval_step"]))) for i in items]
     if exam_id:
         allowed = set(qdb.list_all_question_ids(exam_id))
-        ids = [qid for qid in ids if qid in allowed]
-    return ids[:limit]
+        pairs = [(qid, step) for qid, step in pairs if qid in allowed]
+    return pairs[:limit]
 
 
 def get_scheduled_question_ids(user_id: str, exam_id: str | None = None) -> set[str]:

@@ -18,29 +18,40 @@ _DUE_WEIGHT = 0.6  # 복습 문제 선택 확률
 def get_next_question(user_id: str, exam_id: str | None = None) -> Question | None:
     """
     복습 문제(due)와 새 문제를 랜덤하게 혼합해서 반환.
-    due 문제가 있으면 60% 확률로, 새 문제가 있으면 40% 확률로 선택.
-    한쪽만 있으면 그쪽에서 선택.
+    - regular due (DAY_1+) 문제: 60% 확률
+    - new 문제: 40% 확률
+    - IN_SESSION due 문제: regular due + new 모두 없을 때만 사용
+      (정답+불확실 문제가 너무 자주 재출제되는 것을 방지)
     """
     eid = exam_id or settings.active_exam
-    due_ids = sdb.get_due_question_ids(user_id, limit=20, exam_id=eid)
+    due_items = sdb.get_due_items(user_id, limit=20, exam_id=eid)
+
+    regular_due = [qid for qid, step in due_items if step != IntervalStep.IN_SESSION]
+    in_session_due = [qid for qid, step in due_items if step == IntervalStep.IN_SESSION]
 
     all_ids = qdb.list_all_question_ids(eid)
     scheduled = sdb.get_scheduled_question_ids(user_id, exam_id=eid)
     new_ids = [qid for qid in all_ids if qid not in scheduled]
 
-    if due_ids and new_ids:
-        pool = due_ids if random.random() < _DUE_WEIGHT else new_ids
-    elif due_ids:
-        pool = due_ids
+    if regular_due and new_ids:
+        pool = regular_due if random.random() < _DUE_WEIGHT else new_ids
+        kind = "due"
+    elif regular_due:
+        pool = regular_due
+        kind = "due"
     elif new_ids:
         pool = new_ids
+        kind = "new"
+    elif in_session_due:
+        # 10분 재확인 문제만 남은 경우
+        pool = in_session_due
+        kind = "in_session"
     else:
         return None
 
     qid = random.choice(pool)
     q = qdb.get_question(qid)
     if q:
-        kind = "due" if qid in due_ids else "new"
         logger.debug(f"[{user_id[:8]}] {kind}: {qid[:8]}")
     return q
 
@@ -68,7 +79,19 @@ def process_answer(
             "interval_step": IntervalStep.IN_SESSION,
         })
     elif is_correct and self_confirmed:
-        schedule = schedule.advance(question.difficulty)
+        first_ever = (
+            schedule.interval_step == IntervalStep.IN_SESSION
+            and schedule.consecutive_correct == 0
+        )
+        if first_ever:
+            # 첫 정답: self_confirmed여도 최소 1회 10분 재확인 필요 (Bug 2 수정)
+            schedule = schedule.model_copy(update={
+                "next_review_at": datetime.now() + timedelta(minutes=10),
+                "interval_step": IntervalStep.IN_SESSION,
+                "consecutive_correct": 1,
+            })
+        else:
+            schedule = schedule.advance(question.difficulty)
     else:
         # 오답 → 1일 후 리셋 + 연관 문제 10분 큐 등록
         schedule = schedule.reset()

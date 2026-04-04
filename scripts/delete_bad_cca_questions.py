@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 """
-CCA 문제 중 AWS/Amazon 관련 내용이 포함된 잘못 생성된 문제를 삭제.
+잘못 생성된 CCA 문제를 삭제.
 
-CCA는 Anthropic/Claude 전용 시험이므로 question_text나 explanation에
-"Amazon", "AWS", "Amazon Bedrock" 등이 포함된 문제는 잘못 생성된 것입니다.
+"잘못 생성"의 기준: Multiple Response(MR) 타입 문제.
+CCA 시험은 Multiple Choice only이므로 MR 문제는 모두 잘못 생성된 것입니다.
+
+(AWS/Amazon 언급은 삭제 기준이 아닙니다.
+ Claude를 AWS Bedrock에 연결하는 내용 등은 CCA 범위에 포함됩니다.)
 
 사용법:
   uv run scripts/delete_bad_cca_questions.py            # 드라이런 (삭제 안 함)
@@ -19,14 +22,7 @@ from loguru import logger
 sys.path.insert(0, "src")
 from abuddy.config import settings
 
-AWS_KEYWORDS = ["amazon", "aws ", "amazon bedrock", "amazon s3", "amazon sagemaker"]
-
 app = typer.Typer()
-
-
-def _is_bad(item: dict) -> bool:
-    text = (item.get("question_text", "") + " " + item.get("explanation", "")).lower()
-    return any(kw in text for kw in AWS_KEYWORDS)
 
 
 @app.command()
@@ -38,14 +34,16 @@ def main(
         settings.dynamodb_questions_table
     )
 
-    logger.info(f"[{exam}] DynamoDB 스캔 중...")
+    logger.info(f"[{exam}] DynamoDB 스캔 중 (MR 문제 탐색)...")
     bad: list[str] = []
     last_key = None
     scanned = 0
     while True:
         kwargs: dict = {
-            "FilterExpression": Attr("exam_id").eq(exam),
-            "ProjectionExpression": "question_id, question_text, explanation",
+            "FilterExpression": (
+                Attr("exam_id").eq(exam) & Attr("question_type").eq("multiple_response")
+            ),
+            "ProjectionExpression": "question_id, question_text",
         }
         if last_key:
             kwargs["ExclusiveStartKey"] = last_key
@@ -53,20 +51,19 @@ def main(
         items = resp.get("Items", [])
         scanned += len(items)
         for item in items:
-            if _is_bad(item):
-                bad.append(item["question_id"])
+            bad.append(item["question_id"])
         last_key = resp.get("LastEvaluatedKey")
         if not last_key:
             break
 
-    logger.info(f"스캔 완료: 전체 {scanned}개 중 AWS 언급 {len(bad)}개 발견")
+    logger.info(f"스캔 완료: Multiple Response 문제 {len(bad)}개 발견")
 
     if not bad:
         logger.info("삭제할 문제 없음.")
         return
 
     for qid in bad[:10]:
-        logger.info(f"  예시: {qid}")
+        logger.info(f"  {qid}")
     if len(bad) > 10:
         logger.info(f"  ... 외 {len(bad) - 10}개")
 
