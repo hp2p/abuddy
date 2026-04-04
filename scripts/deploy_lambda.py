@@ -44,6 +44,7 @@ ENV_KEYS = [
     "COGNITO_DOMAIN",
     "APP_BASE_URL",
     "TAVILY_API_KEY",
+    "ACTIVE_EXAM",
 ]
 
 

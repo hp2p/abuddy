@@ -22,10 +22,10 @@ def get_next_question(user_id: str, exam_id: str | None = None) -> Question | No
     한쪽만 있으면 그쪽에서 선택.
     """
     eid = exam_id or settings.active_exam
-    due_ids = sdb.get_due_question_ids(user_id, limit=20)
+    due_ids = sdb.get_due_question_ids(user_id, limit=20, exam_id=eid)
 
     all_ids = qdb.list_all_question_ids(eid)
-    scheduled = sdb.get_scheduled_question_ids(user_id)
+    scheduled = sdb.get_scheduled_question_ids(user_id, exam_id=eid)
     new_ids = [qid for qid in all_ids if qid not in scheduled]
 
     if due_ids and new_ids:

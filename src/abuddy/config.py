@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     tavily_api_key: str = ""
 
     # 활성 자격증 (데이터 격리 키: S3 경로, 문제 필터링)
-    # 예: "aip-c01" | "claude-cert"
+    # 예: "aip-c01" | "CCA"
     active_exam: str = "aip-c01"
 
     app_host: str = "0.0.0.0"

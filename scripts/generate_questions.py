@@ -45,7 +45,7 @@ def main(
     domain: int = typer.Option(0, help="특정 도메인만 (0=전체)"),
     limit: int = typer.Option(0, help="최대 concept 수 (0=전체)"),
     mode: str = typer.Option("summary", help="summary | chunk | all"),
-    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, claude-cert)"),
+    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, CCA)"),
 ):
     if mode not in ("summary", "chunk", "all"):
         logger.error("--mode는 summary / chunk / all 중 하나여야 합니다.")

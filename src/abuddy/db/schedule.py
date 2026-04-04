@@ -50,8 +50,9 @@ def get_schedule(user_id: str, question_id: str) -> ReviewSchedule | None:
     return _from_item(item) if item else None
 
 
-def get_due_question_ids(user_id: str, limit: int = 20) -> list[str]:
-    """next_review_at <= now 이고 미마스터인 문제 (10분 큐 포함)"""
+def get_due_question_ids(user_id: str, limit: int = 20, exam_id: str | None = None) -> list[str]:
+    """next_review_at <= now 이고 미마스터인 문제 (10분 큐 포함). exam_id로 시험 격리."""
+    from abuddy.db import questions as qdb
     now_ts = Decimal(str(datetime.now().timestamp()))
     resp = _table().query(
         KeyConditionExpression="user_id = :uid",
@@ -63,17 +64,26 @@ def get_due_question_ids(user_id: str, limit: int = 20) -> list[str]:
         },
     )
     items = sorted(resp.get("Items", []), key=lambda x: x["next_review_at"])
-    return [i["question_id"] for i in items[:limit]]
+    ids = [i["question_id"] for i in items]
+    if exam_id:
+        allowed = set(qdb.list_all_question_ids(exam_id))
+        ids = [qid for qid in ids if qid in allowed]
+    return ids[:limit]
 
 
-def get_scheduled_question_ids(user_id: str) -> set[str]:
-    """해당 유저가 스케줄에 등록한 모든 question_id"""
+def get_scheduled_question_ids(user_id: str, exam_id: str | None = None) -> set[str]:
+    """해당 유저가 스케줄에 등록한 모든 question_id. exam_id로 시험 격리."""
+    from abuddy.db import questions as qdb
     resp = _table().query(
         KeyConditionExpression="user_id = :uid",
         ProjectionExpression="question_id",
         ExpressionAttributeValues={":uid": user_id},
     )
-    return {i["question_id"] for i in resp.get("Items", [])}
+    ids = {i["question_id"] for i in resp.get("Items", [])}
+    if exam_id:
+        allowed = set(qdb.list_all_question_ids(exam_id))
+        ids = ids & allowed
+    return ids
 
 
 def get_stats(user_id: str) -> dict:

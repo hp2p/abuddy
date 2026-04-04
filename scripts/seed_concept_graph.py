@@ -132,7 +132,7 @@ app = typer.Typer()
 @app.command()
 def main(
     force: bool = typer.Option(False, "--force", help="체크포인트 무시하고 전체 재실행"),
-    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, claude-cert)"),
+    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, CCA)"),
     exam_guide: str = typer.Option("", "--exam-guide", help="시험 가이드 JSON 경로 (기본: {exam}-exam-guide.json)"),
 ):
     guide_path = Path(exam_guide) if exam_guide else Path(f"{exam}-exam-guide.json")

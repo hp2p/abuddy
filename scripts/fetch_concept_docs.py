@@ -88,7 +88,7 @@ def _search_docs(concept_name: str, services: list[str], client: httpx.Client, s
 
 _EXAM_DEFAULT_SOURCE = {
     "aip-c01": "aws",
-    "claude-cert": "anthropic",
+    "CCA": "anthropic",
 }
 
 
@@ -99,7 +99,7 @@ def main(
     dry_run: bool = typer.Option(False, "--dry-run", help="검색 결과 확인만 (저장 안 함)"),
     chunk_only: bool = typer.Option(False, "--chunk-only", help="수집/요약 스킵, 청킹만 추가"),
     summarize_only: bool = typer.Option(False, "--summarize-only", help="수집/청킹 스킵, 요약만 추가"),
-    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, claude-cert)"),
+    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, CCA)"),
     source: str = typer.Option("", "--source", help="문서 소스: aws (docs.aws.amazon.com) | anthropic (docs.anthropic.com). 기본값은 exam에 따라 자동 선택"),
 ):
     if chunk_only and summarize_only:
