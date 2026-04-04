@@ -4,52 +4,55 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}ABuddy{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="/static/htmx.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'Apple SD Gothic Neo', 'Malgun Gothic', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
     .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; }
     .htmx-request .htmx-indicator { opacity: 1; }
     .htmx-request.htmx-indicator { opacity: 1; }
   </style>
 </head>
-<body class="bg-gray-50 min-h-screen font-sans">
+<body class="bg-gray-50 min-h-screen font-sans text-gray-900 antialiased">
 
   <!-- 헤더 -->
-  <header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-4">
-    <a href="/" class="text-lg font-bold text-orange-500 shrink-0">ABuddy</a>
-    <nav class="flex gap-5 text-sm text-gray-600">
-      <a href="/quiz" class="hover:text-orange-500">문제 풀기</a>
-      <a href="/stats" class="hover:text-orange-500">진도 확인</a>
+  <header class="bg-white border-b border-gray-100 px-5 py-4 flex items-center gap-5">
+    <a href="/" class="text-base font-bold text-orange-500 shrink-0 tracking-tight">ABuddy</a>
+    <nav class="flex gap-5 text-sm font-medium text-gray-400">
+      <a href="/quiz" class="hover:text-gray-900 transition-colors">문제 풀기</a>
+      <a href="/stats" class="hover:text-gray-900 transition-colors">진도 확인</a>
     </nav>
-    {% if stats is defined %}
-    <div class="flex gap-3 text-xs text-gray-400 ml-2">
-      <span>마스터 <b class="text-green-600">{{ stats.mastered }}</b></span>
-      <span>대기 <b class="text-orange-500">{{ stats.due_now }}</b></span>
-    </div>
-    {% endif %}
-    <div class="ml-auto flex items-center gap-3">
-      {% if username is defined and username %}
-      <span class="text-sm text-gray-500">{{ username }}</span>
-      {% endif %}
-      <a href="/auth/logout"
-         class="text-xs text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg px-2.5 py-1 hover:border-red-300 transition-colors">
+    <div class="ml-auto">
+      <a href="/auth/logout" class="text-sm text-gray-300 hover:text-gray-600 transition-colors">
         로그아웃
       </a>
     </div>
   </header>
 
   <!-- 메인 -->
-  <main class="max-w-3xl mx-auto px-4 py-8">
+  <main class="max-w-xl mx-auto px-4 py-6 md:py-10">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- 서버/네트워크 에러 토스트 -->
+  <!-- 에러 토스트 -->
   <div id="error-toast"
-       class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-red-500 text-white text-sm px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 z-50 max-w-sm">
-    <span>⚠️</span>
+       class="hidden fixed bottom-5 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 z-50 max-w-sm">
     <span id="error-msg">서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.</span>
     <button onclick="document.getElementById('error-toast').classList.add('hidden')"
-            class="ml-1 opacity-70 hover:opacity-100 text-lg leading-none">✕</button>
+            class="ml-1 opacity-50 hover:opacity-100 text-base leading-none">✕</button>
   </div>
 
   <script>

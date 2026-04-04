@@ -21,13 +21,14 @@ from abuddy.services.concept_graph import get_concept, load_graph
 
 
 def _shuffle_options(question):
-    """선택지 순서를 랜덤하게 섞고 correct_indices를 재매핑한 복사본 반환"""
+    """선택지 순서를 랜덤하게 섞은 복사본과 original_indices(섞인위치→원본위치) 반환"""
     indices = list(range(len(question.options)))
     random.shuffle(indices)
     shuffled_options = [question.options[i] for i in indices]
     reverse_map = {old: new for new, old in enumerate(indices)}
     new_correct = sorted(reverse_map[i] for i in question.correct_indices)
-    return question.model_copy(update={"options": shuffled_options, "correct_indices": new_correct})
+    shuffled_q = question.model_copy(update={"options": shuffled_options, "correct_indices": new_correct})
+    return shuffled_q, indices
 
 
 _CARDS_PATH = Path(__file__).parent.parent / "data" / "motivation_cards.json"
@@ -186,10 +187,12 @@ async def quiz_page(request: Request):
         return templates.TemplateResponse(request, "no_questions.html")
 
     concept = get_concept(question.concept_id)
+    shuffled_q, original_indices = _shuffle_options(question)
     return templates.TemplateResponse(request, "quiz.html", {
-        "question": _shuffle_options(question),
+        "question": shuffled_q,
         "concept": concept,
         "labels": OPTION_LABELS,
+        "original_indices": original_indices,
         "stats": sdb.get_stats(user_id),
         "username": get_display_name(request),
     })

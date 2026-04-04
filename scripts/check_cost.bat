@@ -1,0 +1,1 @@
+  aws ce get-cost-and-usage --time-period Start=2026-04-01,End=2026-04-05 --granularity DAILY --filter "{\"Dimensions\":{\"Key\":\"SERVICE\",\"Values\":[\"Amazon Bedrock\"]}}" --metrics BlendedCost
