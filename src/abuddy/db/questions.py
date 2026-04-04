@@ -1,6 +1,5 @@
-from datetime import datetime
-
 import boto3
+from boto3.dynamodb.conditions import Attr
 from loguru import logger
 
 from abuddy.config import settings
@@ -24,18 +23,26 @@ def get_question(question_id: str) -> Question | None:
     return Question(**item) if item else None
 
 
-def list_questions_by_concept(concept_id: str) -> list[Question]:
-    resp = _table().scan(
-        FilterExpression="concept_id = :cid",
-        ExpressionAttributeValues={":cid": concept_id},
-    )
+def list_questions_by_concept(concept_id: str, exam_id: str | None = None) -> list[Question]:
+    eid = exam_id or settings.active_exam
+    filt = Attr("concept_id").eq(concept_id) & Attr("exam_id").eq(eid)
+    resp = _table().scan(FilterExpression=filt)
     return [Question(**i) for i in resp.get("Items", [])]
 
 
-def list_all_question_ids() -> list[str]:
-    resp = _table().scan(ProjectionExpression="question_id")
+def list_all_question_ids(exam_id: str | None = None) -> list[str]:
+    eid = exam_id or settings.active_exam
+    resp = _table().scan(
+        ProjectionExpression="question_id",
+        FilterExpression=Attr("exam_id").eq(eid),
+    )
     return [i["question_id"] for i in resp.get("Items", [])]
 
 
-def question_count() -> int:
-    return _table().scan(Select="COUNT").get("Count", 0)
+def question_count(exam_id: str | None = None) -> int:
+    eid = exam_id or settings.active_exam
+    resp = _table().scan(
+        Select="COUNT",
+        FilterExpression=Attr("exam_id").eq(eid),
+    )
+    return resp.get("Count", 0)

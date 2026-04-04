@@ -45,24 +45,25 @@ def main(
     domain: int = typer.Option(0, help="특정 도메인만 (0=전체)"),
     limit: int = typer.Option(0, help="최대 concept 수 (0=전체)"),
     mode: str = typer.Option("summary", help="summary | chunk | all"),
+    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, claude-cert)"),
 ):
     if mode not in ("summary", "chunk", "all"):
         logger.error("--mode는 summary / chunk / all 중 하나여야 합니다.")
         raise typer.Exit(1)
 
-    concepts = get_all_concepts()
+    concepts = get_all_concepts(exam_id=exam)
     if domain:
         concepts = [c for c in concepts if c.domain == domain]
     if limit:
         concepts = concepts[:limit]
 
-    logger.info(f"Generating questions for {len(concepts)} concepts (mode={mode})...")
+    logger.info(f"Generating questions for {len(concepts)} concepts (mode={mode}, exam={exam})...")
     total = errors = 0
 
     for concept in concepts:
         # ── summary 모드 ────────────────────────────────────
         if mode in ("summary", "all"):
-            existing = qdb.list_questions_by_concept(concept.concept_id)
+            existing = qdb.list_questions_by_concept(concept.concept_id, exam_id=exam)
             # chunk 기반이 아닌 summary 문제만 필터
             existing_summary = {(q.question_type, q.difficulty) for q in existing if not q.chunk_id}
             remaining_plans = [
@@ -75,7 +76,7 @@ def main(
                 continue
             if len(remaining_plans) < len(SUMMARY_PLANS):
                 logger.info(f"[{concept.name}] summary {len(existing_summary)}/{len(SUMMARY_PLANS)}개 존재, 나머지 {len(remaining_plans)}개 생성")
-            doc_content = load_doc_content(concept.concept_id)
+            doc_content = load_doc_content(concept.concept_id, exam_id=exam)
             if doc_content:
                 logger.info(f"[{concept.name}] summary {len(doc_content)}자 로드")
             for q_type, difficulty, num_correct in remaining_plans:
@@ -86,6 +87,7 @@ def main(
                         difficulty=difficulty,
                         num_correct=num_correct,
                         doc_content=doc_content,
+                        exam_id=exam,
                     )
                     qdb.put_question(q)
                     total += 1
@@ -98,8 +100,8 @@ def main(
 
         # ── chunk 모드 ──────────────────────────────────────
         if mode in ("chunk", "all"):
-            existing_chunk_ids = {q.chunk_id for q in qdb.list_questions_by_concept(concept.concept_id) if q.chunk_id}
-            chunks = load_doc_chunks(concept.concept_id)
+            existing_chunk_ids = {q.chunk_id for q in qdb.list_questions_by_concept(concept.concept_id, exam_id=exam) if q.chunk_id}
+            chunks = load_doc_chunks(concept.concept_id, exam_id=exam)
             if not chunks:
                 logger.warning(f"[{concept.name}] 청크 없음, chunk 모드 스킵")
                 continue
@@ -122,6 +124,7 @@ def main(
                             doc_content=chunk["content"],
                             chunk_heading=chunk["heading"],
                             chunk_id=chunk["chunk_id"],
+                            exam_id=exam,
                         )
                         qdb.put_question(q)
                         total += 1

@@ -201,10 +201,7 @@ if __name__ == "__main__":
     base_url = url.rstrip("/")
 
     print("\n" + "=" * 60)
-    print("✅ Lambda 배포 완료!")
-    print(f"\nFunction URL: {url}")
-    print("\n다음 단계:")
-    print(f"1. .env 에서 APP_BASE_URL={base_url} 으로 수정")
-    print(f"2. Cognito Callback URL 업데이트:")
-    print(f"   uv run scripts/setup_aws.py {base_url}")
+    print("Lambda 배포 완료")
+    print(f"Function URL: {url}")
+    print(f"APP_BASE_URL: {base_url}")
     print("=" * 60 + "\n")

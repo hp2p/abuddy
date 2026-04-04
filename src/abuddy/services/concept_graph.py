@@ -1,6 +1,4 @@
 """개념 그래프: networkx + S3 JSON 저장"""
-import io
-
 import boto3
 import networkx as nx
 import orjson
@@ -9,27 +7,30 @@ from loguru import logger
 from abuddy.config import settings
 from abuddy.models.concept import Concept, ConceptEdge, ConceptGraph
 
-_S3_KEY = "graph/concept_graph.json"
-_graph: nx.DiGraph | None = None  # 메모리 캐시
+_graphs: dict[str, nx.DiGraph] = {}  # exam_id → DiGraph 캐시
 
 
 def _s3():
     return boto3.client("s3", region_name=settings.aws_region)
 
 
-def load_graph() -> nx.DiGraph:
-    global _graph
-    if _graph is not None:
-        return _graph
+def _s3_key(exam_id: str) -> str:
+    return f"{exam_id}/graph/concept_graph.json"
+
+
+def load_graph(exam_id: str | None = None) -> nx.DiGraph:
+    eid = exam_id or settings.active_exam
+    if eid in _graphs:
+        return _graphs[eid]
 
     try:
-        obj = _s3().get_object(Bucket=settings.s3_bucket, Key=_S3_KEY)
+        obj = _s3().get_object(Bucket=settings.s3_bucket, Key=_s3_key(eid))
         data = orjson.loads(obj["Body"].read())
         cg = ConceptGraph(**data)
     except Exception:
-        logger.warning("No concept graph found in S3, returning empty graph")
-        _graph = nx.DiGraph()
-        return _graph
+        logger.warning(f"No concept graph found in S3 for exam={eid}, returning empty graph")
+        _graphs[eid] = nx.DiGraph()
+        return _graphs[eid]
 
     g = nx.DiGraph()
     for node in cg.nodes:
@@ -37,13 +38,13 @@ def load_graph() -> nx.DiGraph:
     for edge in cg.edges:
         g.add_edge(edge.source_id, edge.target_id, relation=edge.relation, weight=edge.weight)
 
-    _graph = g
-    logger.info(f"Loaded concept graph: {g.number_of_nodes()} nodes, {g.number_of_edges()} edges")
-    return _graph
+    _graphs[eid] = g
+    logger.info(f"Loaded concept graph [{eid}]: {g.number_of_nodes()} nodes, {g.number_of_edges()} edges")
+    return _graphs[eid]
 
 
-def save_graph(g: nx.DiGraph) -> None:
-    global _graph
+def save_graph(g: nx.DiGraph, exam_id: str | None = None) -> None:
+    eid = exam_id or settings.active_exam
     nodes = [Concept(**g.nodes[n]) for n in g.nodes]
     edges = [
         ConceptEdge(source_id=u, target_id=v, **d)
@@ -51,14 +52,14 @@ def save_graph(g: nx.DiGraph) -> None:
     ]
     cg = ConceptGraph(nodes=nodes, edges=edges)
     body = orjson.dumps(cg.model_dump(), option=orjson.OPT_INDENT_2)
-    _s3().put_object(Bucket=settings.s3_bucket, Key=_S3_KEY, Body=body, ContentType="application/json")
-    _graph = g
-    logger.info("Saved concept graph to S3")
+    _s3().put_object(Bucket=settings.s3_bucket, Key=_s3_key(eid), Body=body, ContentType="application/json")
+    _graphs[eid] = g
+    logger.info(f"Saved concept graph [{eid}] to S3")
 
 
-def get_related_concept_ids(concept_id: str, hops: int = 2) -> list[str]:
+def get_related_concept_ids(concept_id: str, hops: int = 2, exam_id: str | None = None) -> list[str]:
     """주어진 concept에서 N-hop 이내 이웃 concept_id 목록"""
-    g = load_graph()
+    g = load_graph(exam_id)
     if concept_id not in g:
         return []
     neighbors = set()
@@ -74,18 +75,20 @@ def get_related_concept_ids(concept_id: str, hops: int = 2) -> list[str]:
     return list(neighbors)
 
 
-def get_all_concepts() -> list[Concept]:
-    g = load_graph()
+def get_all_concepts(exam_id: str | None = None) -> list[Concept]:
+    g = load_graph(exam_id)
     return [Concept(**g.nodes[n]) for n in g.nodes]
 
 
-def get_concept(concept_id: str) -> Concept | None:
-    g = load_graph()
+def get_concept(concept_id: str, exam_id: str | None = None) -> Concept | None:
+    g = load_graph(exam_id)
     if concept_id not in g:
         return None
     return Concept(**g.nodes[concept_id])
 
 
-def invalidate_cache() -> None:
-    global _graph
-    _graph = None
+def invalidate_cache(exam_id: str | None = None) -> None:
+    if exam_id:
+        _graphs.pop(exam_id, None)
+    else:
+        _graphs.clear()

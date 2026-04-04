@@ -28,6 +28,7 @@ class Question(BaseModel):
     explanation: str
     source: str = "generated"   # "official" | "generated"
     chunk_id: str = ""           # chunk 기반 문제일 때 설정 (concept_id_pX_cY)
+    exam_id: str = "aip-c01"    # 자격증 종류 ("aip-c01" | "claude-cert")
 
 
 class AnswerSubmission(BaseModel):

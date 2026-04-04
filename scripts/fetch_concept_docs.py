@@ -87,6 +87,7 @@ def main(
     dry_run: bool = typer.Option(False, "--dry-run", help="검색 결과 확인만 (저장 안 함)"),
     chunk_only: bool = typer.Option(False, "--chunk-only", help="수집/요약 스킵, 청킹만 추가"),
     summarize_only: bool = typer.Option(False, "--summarize-only", help="수집/청킹 스킵, 요약만 추가"),
+    exam: str = typer.Option("aip-c01", "--exam", help="자격증 ID (예: aip-c01, claude-cert)"),
 ):
     if chunk_only and summarize_only:
         logger.error("--chunk-only와 --summarize-only는 동시에 사용할 수 없습니다.")
@@ -96,7 +97,7 @@ def main(
         logger.error("TAVILY_API_KEY가 설정되지 않았습니다. .env를 확인하세요.")
         raise typer.Exit(1)
 
-    concepts = get_all_concepts()
+    concepts = get_all_concepts(exam_id=exam)
     if concept_id:
         concepts = [c for c in concepts if c.concept_id == concept_id]
         if not concepts:
@@ -104,7 +105,7 @@ def main(
             raise typer.Exit(1)
 
     mode = "chunk-only" if chunk_only else "summarize-only" if summarize_only else "full"
-    logger.info(f"총 {len(concepts)}개 concept 처리 시작 (mode={mode})")
+    logger.info(f"총 {len(concepts)}개 concept 처리 시작 (mode={mode}, exam={exam})")
     ok = skipped = errors = 0
 
     with httpx.Client(timeout=30) as client:
@@ -118,7 +119,7 @@ def main(
 
             # ── chunk-only: 기존 doc에 청킹만 추가 ─────────────
             if chunk_only:
-                doc = load_doc(concept.concept_id)
+                doc = load_doc(concept.concept_id, exam_id=exam)
                 if not doc:
                     logger.warning("  저장된 문서 없음, 스킵")
                     skipped += 1
@@ -129,14 +130,14 @@ def main(
                     continue
                 doc["chunks"] = chunk_pages(doc.get("pages", []), concept.concept_id)
                 doc["chunked_at"] = datetime.now(UTC).isoformat()
-                save_doc(concept.concept_id, doc)
+                save_doc(concept.concept_id, doc, exam_id=exam)
                 logger.info(f"  → {len(doc['chunks'])}개 청크 저장 완료")
                 ok += 1
                 continue
 
             # ── summarize-only: 기존 doc에 요약만 추가 ──────────
             if summarize_only:
-                doc = load_doc(concept.concept_id)
+                doc = load_doc(concept.concept_id, exam_id=exam)
                 if not doc:
                     logger.warning("  저장된 문서 없음, 스킵")
                     skipped += 1
@@ -145,11 +146,11 @@ def main(
                     logger.info("  이미 요약됨, 스킵")
                     skipped += 1
                     continue
-                raw = load_raw_pages(concept.concept_id)
+                raw = load_raw_pages(concept.concept_id, exam_id=exam)
                 try:
                     doc["summary"] = summarize_doc_content(concept.name, raw)
                     doc["summarized_at"] = datetime.now(UTC).isoformat()
-                    save_doc(concept.concept_id, doc)
+                    save_doc(concept.concept_id, doc, exam_id=exam)
                     logger.info(f"  → 요약 저장 완료 ({len(doc['summary'])}자)")
                     ok += 1
                 except Exception as e:
@@ -159,7 +160,7 @@ def main(
                 continue
 
             # ── full: 수집 + 청킹 + 요약 ────────────────────────
-            if not force and not dry_run and doc_exists(concept.concept_id):
+            if not force and not dry_run and doc_exists(concept.concept_id, exam_id=exam):
                 logger.info("  이미 수집됨, 스킵")
                 skipped += 1
                 continue
@@ -205,7 +206,7 @@ def main(
                 "fetched_at": now,
                 "chunked_at": now,
                 "summarized_at": now if summary else "",
-            })
+            }, exam_id=exam)
             logger.info("  → S3 저장 완료")
             ok += 1
             time.sleep(_SEARCH_DELAY)

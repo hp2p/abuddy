@@ -100,6 +100,7 @@ def generate_question(
     doc_content: str = "",
     chunk_heading: str = "",
     chunk_id: str = "",
+    exam_id: str = "aip-c01",
 ) -> Question:
     services_str = ", ".join(concept.aws_services) if concept.aws_services else "various AWS services"
     if doc_content and chunk_heading:
@@ -149,6 +150,7 @@ def generate_question(
         explanation=data["explanation"],
         source="generated",
         chunk_id=chunk_id,
+        exam_id=exam_id,
     )
 
 

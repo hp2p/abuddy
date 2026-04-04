@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     # Tavily: AWS 문서 수집 (fetch_concept_docs.py)
     tavily_api_key: str = ""
 
+    # 활성 자격증 (데이터 격리 키: S3 경로, 문제 필터링)
+    # 예: "aip-c01" | "claude-cert"
+    active_exam: str = "aip-c01"
+
     app_host: str = "0.0.0.0"
     app_port: int = 8002
 

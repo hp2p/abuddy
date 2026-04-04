@@ -7,7 +7,6 @@ from loguru import logger
 
 from abuddy.config import settings
 
-_DOC_KEY_PREFIX = "docs/"
 _CHUNK_MAX_CHARS = 800
 _HEADING_RE = re.compile(r"^#{1,4}\s+(.+)", re.MULTILINE)
 
@@ -16,23 +15,28 @@ def _s3():
     return boto3.client("s3", region_name=settings.aws_region)
 
 
+def _doc_key(concept_id: str, exam_id: str | None = None) -> str:
+    eid = exam_id or settings.active_exam
+    return f"{eid}/docs/{concept_id}.json"
+
+
 # ── S3 로드 / 저장 ────────────────────────────────────────────
 
-def load_doc(concept_id: str) -> dict | None:
+def load_doc(concept_id: str, exam_id: str | None = None) -> dict | None:
     """S3에서 doc JSON 전체 반환. 없으면 None."""
     try:
         obj = _s3().get_object(
             Bucket=settings.s3_bucket,
-            Key=f"{_DOC_KEY_PREFIX}{concept_id}.json",
+            Key=_doc_key(concept_id, exam_id),
         )
         return orjson.loads(obj["Body"].read())
     except Exception:
         return None
 
 
-def load_doc_content(concept_id: str) -> str:
+def load_doc_content(concept_id: str, exam_id: str | None = None) -> str:
     """저장된 요약(summary) 반환. 요약 없으면 raw 첫 페이지로 fallback. 없으면 빈 문자열."""
-    doc = load_doc(concept_id)
+    doc = load_doc(concept_id, exam_id)
     if not doc:
         return ""
     if summary := doc.get("summary"):
@@ -42,9 +46,9 @@ def load_doc_content(concept_id: str) -> str:
     return pages[0]["content"] if pages else ""
 
 
-def load_raw_pages(concept_id: str) -> str:
+def load_raw_pages(concept_id: str, exam_id: str | None = None) -> str:
     """요약·청킹 생성용: 모든 페이지 raw content를 이어붙여 반환."""
-    doc = load_doc(concept_id)
+    doc = load_doc(concept_id, exam_id)
     if not doc:
         return ""
     parts = []
@@ -53,29 +57,29 @@ def load_raw_pages(concept_id: str) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def load_doc_chunks(concept_id: str) -> list[dict]:
+def load_doc_chunks(concept_id: str, exam_id: str | None = None) -> list[dict]:
     """저장된 chunks 배열 반환. 없으면 빈 리스트."""
-    doc = load_doc(concept_id)
+    doc = load_doc(concept_id, exam_id)
     if not doc:
         return []
     return doc.get("chunks", [])
 
 
-def doc_exists(concept_id: str) -> bool:
+def doc_exists(concept_id: str, exam_id: str | None = None) -> bool:
     try:
         _s3().head_object(
             Bucket=settings.s3_bucket,
-            Key=f"{_DOC_KEY_PREFIX}{concept_id}.json",
+            Key=_doc_key(concept_id, exam_id),
         )
         return True
     except Exception:
         return False
 
 
-def save_doc(concept_id: str, data: dict) -> None:
+def save_doc(concept_id: str, data: dict, exam_id: str | None = None) -> None:
     _s3().put_object(
         Bucket=settings.s3_bucket,
-        Key=f"{_DOC_KEY_PREFIX}{concept_id}.json",
+        Key=_doc_key(concept_id, exam_id),
         Body=orjson.dumps(data, option=orjson.OPT_INDENT_2),
         ContentType="application/json",
     )

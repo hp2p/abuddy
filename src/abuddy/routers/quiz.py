@@ -3,11 +3,13 @@ import random
 from datetime import date
 from pathlib import Path
 
+import boto3
 from fastapi import APIRouter, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from loguru import logger
 
+from abuddy.config import settings
 from abuddy.db import questions as qdb
 from abuddy.db import schedule as sdb
 from abuddy.db import user_profile as updb
@@ -15,7 +17,7 @@ from abuddy.db import user_questions as uqdb
 from abuddy.services import bedrock
 from abuddy.services import quiz_engine as engine
 from abuddy.services.auth import NotAuthenticated, get_current_user, get_display_name
-from abuddy.services.concept_graph import get_concept
+from abuddy.services.concept_graph import get_concept, load_graph
 
 
 def _shuffle_options(question):
@@ -49,6 +51,42 @@ DAILY_GOAL = 5
 
 router = APIRouter()
 templates = Jinja2Templates(directory="src/abuddy/templates")
+
+
+@router.get("/health")
+async def health():
+    """현재 배포 상태 확인용 (인증 불필요)"""
+    exam = settings.active_exam
+    s3_key = f"{exam}/graph/concept_graph.json"
+    old_s3_key = "graph/concept_graph.json"
+
+    # S3 경로 존재 여부
+    s3 = boto3.client("s3", region_name=settings.aws_region)
+    def _s3_exists(key: str) -> bool:
+        try:
+            s3.head_object(Bucket=settings.s3_bucket, Key=key)
+            return True
+        except Exception:
+            return False
+
+    # 개념 그래프 (캐시에서)
+    g = load_graph(exam)
+
+    return JSONResponse({
+        "active_exam": exam,
+        "s3": {
+            "new_path": s3_key,
+            "new_path_exists": _s3_exists(s3_key),
+            "old_path_exists": _s3_exists(old_s3_key),
+        },
+        "concept_graph": {
+            "nodes": g.number_of_nodes(),
+            "edges": g.number_of_edges(),
+        },
+        "questions": {
+            "count": qdb.question_count(exam),
+        },
+    })
 templates.env.globals["enumerate"] = enumerate
 
 OPTION_LABELS = ["A", "B", "C", "D", "E", "F"]

@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from loguru import logger
 
+from abuddy.config import settings
 from abuddy.db import questions as qdb
 from abuddy.db import schedule as sdb
 from abuddy.db import user_profile as updb
@@ -14,15 +15,16 @@ from abuddy.services import concept_graph as cg
 _DUE_WEIGHT = 0.6  # 복습 문제 선택 확률
 
 
-def get_next_question(user_id: str) -> Question | None:
+def get_next_question(user_id: str, exam_id: str | None = None) -> Question | None:
     """
     복습 문제(due)와 새 문제를 랜덤하게 혼합해서 반환.
     due 문제가 있으면 60% 확률로, 새 문제가 있으면 40% 확률로 선택.
     한쪽만 있으면 그쪽에서 선택.
     """
+    eid = exam_id or settings.active_exam
     due_ids = sdb.get_due_question_ids(user_id, limit=20)
 
-    all_ids = qdb.list_all_question_ids()
+    all_ids = qdb.list_all_question_ids(eid)
     scheduled = sdb.get_scheduled_question_ids(user_id)
     new_ids = [qid for qid in all_ids if qid not in scheduled]
 
@@ -79,12 +81,12 @@ def process_answer(
 
 def _queue_related_questions(user_id: str, question: Question) -> None:
     """오답 시 연관 concept 문제를 10분 후 스케줄에 추가"""
-    related_concept_ids = cg.get_related_concept_ids(question.concept_id, hops=1)
+    related_concept_ids = cg.get_related_concept_ids(question.concept_id, hops=1, exam_id=question.exam_id)
     if not related_concept_ids:
         return
 
     for cid in related_concept_ids[:2]:
-        related_qs = qdb.list_questions_by_concept(cid)
+        related_qs = qdb.list_questions_by_concept(cid, exam_id=question.exam_id)
         candidates = [q for q in related_qs if q.question_id != question.question_id]
         if not candidates:
             continue

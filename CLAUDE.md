@@ -19,15 +19,26 @@ uv run ruff format src/
 uv run scripts/setup_aws.py http://YOUR_EC2_IP
 
 # 개념 그래프 생성 (최초 1회, Bedrock Sonnet 사용)
-uv run scripts/seed_concept_graph.py
+uv run scripts/seed_concept_graph.py --exam aip-c01
+uv run scripts/seed_concept_graph.py --exam claude-cert --exam-guide claude-cert-exam-guide.json
+
+# 문서 수집 (Tavily)
+uv run scripts/fetch_concept_docs.py --exam aip-c01
+uv run scripts/fetch_concept_docs.py --exam claude-cert
 
 # 문제 생성 (개념 그래프 생성 후)
-uv run scripts/generate_questions.py
-uv run scripts/generate_questions.py --domain 1 --limit 5
+uv run scripts/generate_questions.py --exam aip-c01
+uv run scripts/generate_questions.py --exam aip-c01 --domain 1 --limit 5
 
 # 사용자 팔로업 질문 → 문제 은행 변환
 uv run scripts/generate_from_user_questions.py
 uv run scripts/generate_from_user_questions.py --limit 20 --dry-run
+
+# 기존 데이터 마이그레이션 (1회성, 기존 S3/DynamoDB 데이터에 exam_id 추가)
+uv run scripts/migrate_s3_exam_prefix.py                         # 드라이런
+uv run scripts/migrate_s3_exam_prefix.py --execute               # 실행
+uv run scripts/migrate_questions_exam_id.py                      # 드라이런
+uv run scripts/migrate_questions_exam_id.py --execute            # 실행
 
 # Docker 로컬 실행
 docker compose up --build
@@ -45,7 +56,7 @@ docker compose up --build
 - **DynamoDB**:
   - `abuddy-questions`: PK=`question_id` — 전체 공유 문제 은행
   - `abuddy-schedule`: PK=`user_id`, SK=`question_id` — 유저별 에빙하우스 스케줄
-- **S3**: `abuddy-data` 버킷 — `graph/concept_graph.json` (개념 그래프, 공유)
+- **S3**: `abuddy-data` 버킷 — `{exam_id}/graph/concept_graph.json`, `{exam_id}/docs/{concept_id}.json`
 
 **인증 흐름**:
 `/` → 쿠키 없으면 `/auth/login` → Cognito Hosted UI → `/auth/callback?code=` → id_token 쿠키 설정 → `/`

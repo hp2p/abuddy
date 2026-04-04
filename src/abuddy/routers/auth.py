@@ -11,7 +11,7 @@ templates = Jinja2Templates(directory="src/abuddy/templates")
 templates.env.globals["enumerate"] = enumerate
 
 _ID_TOKEN_MAX_AGE = 60 * 60 * 8       # 8시간
-_REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24 * 30  # 30일
+_REFRESH_TOKEN_MAX_AGE = 60 * 60 * 24  # 1일
 
 
 @router.get("/login", response_class=HTMLResponse)
