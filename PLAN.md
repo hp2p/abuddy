@@ -1,6 +1,6 @@
 # ABuddy — 프로젝트 컨텍스트 & 구현 계획
 
-_마지막 업데이트: 2026-04-04 (5차)_
+_마지막 업데이트: 2026-04-05 (6차)_
 
 ---
 
@@ -59,10 +59,10 @@ _마지막 업데이트: 2026-04-04 (5차)_
 
 | # | 항목 | 상태 | 설명 |
 |---|------|------|------|
-| 1 | **문제 이중 언어 생성** | 미착수 | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
-| 2 | **음성 입력 지원** | 미착수 | 문제 TTS 재생 + 음성 답변/질문. Web Speech API 우선. |
-| 3 | **팔로업 질문 → 문제 배치 주기화** | 미착수 | `generate_from_user_questions.py` 주기 실행 방침 결정. |
+| 1 | **팔로업 질문 → 문제 배치 주기화** | 미착수 | `generate_from_user_questions.py` 주기 실행 방침 결정. |
+| 2 | **핸즈프리 음성 모드** | 미착수 | 문제/선택지 TTS + 음성 답변 + 음성 팔로업 질문. 설계 완료 → 아래 상세 참조. |
 | TBD | **리더보드** | 미착수 | 주간 풀이 수 기준 멀티유저 랭킹. |
+| done | **문제 이중 언어 생성** | ✅ 완료 | 동일 문제를 영어 + 한국어(용어는 영어 유지) 두 버전으로 생성. 언어 선택 UI 추가. |
 | done | **AWS / Claude 자격증 데이터 완전 분리** | ✅ 완료 | exam_id로 S3 경로·DynamoDB·스케줄 큐 완전 격리. `ACTIVE_EXAM` env var로 활성 자격증 전환. |
 | done | **Claude 자격증 집중 전환** | ✅ 완료 | CCA (Claude Certified Architect Foundations) 중심으로 전환. exam_id=`CCA`. |
 | done | **CCA 자료 구조화 및 docs 생성** | ✅ 완료 | 개념 그래프 seed + Skilljar 강의 기반 docs 186개 생성. `skilljar_to_docs.py` 신규 작성. |
@@ -72,6 +72,125 @@ _마지막 업데이트: 2026-04-04 (5차)_
 | done | **DynamoDB scan 개선** | ✅ 완료 | `list_all_question_ids()` full scan → pagination 처리 + 메모리 캐시. |
 | done | **모바일 스타일 개선** | ✅ 완료 | Tailwind CSS 도입. 폰트 크기·선택지 탭 크기 모바일 최적화. |
 | done | **테스트** | ✅ 완료 | pytest 설정 있으나 tests/ 없음. quiz_engine, schedule, bedrock 우선. |
+
+---
+
+## 핸즈프리 터치 모드 설계
+
+### 목표
+이어폰으로 들으면서 화면을 보지 않고 터치만으로 문제 풀기. 갤럭시(Android Chrome) 우선, 모든 환경 지원.
+
+### 전체 흐름
+
+```
+[터치 모드 버튼] 클릭 → Wake Lock 활성화 → 전체화면 오버레이
+  → [TTS] 문제 텍스트 읽기 (여성)
+  → [TTS] 선택지 A, B, C, D... 읽기 (A/C/E=남성, B/D=여성)
+  → [TAP] 답 입력 대기
+  → [TTS] "A 선택" 확인 읽기 (여성) → HTMX 제출
+  → [TTS] 정답/오답 + 해설 읽기 (남성)
+  → [TAP] 1회 → 다음 문제
+  → ...
+```
+
+### TTS: edge-tts (서버사이드) + S3 영구 캐시
+
+**선택 이유**: 브라우저/OS별 목소리 차이 없음. 모든 환경에서 `<audio>` 태그로 균일하게 재생. 한국어 품질 우수.
+
+```
+클라이언트: GET /api/tts?text=...&voice=SunHi
+  → 서버: S3 캐시 HIT → presigned URL 반환 (즉시)
+         S3 캐시 MISS → edge-tts 생성 → S3 저장 → URL 반환 (~0.5초)
+  → <audio src="..."> 재생
+```
+
+**목소리 배정**:
+| 콘텐츠 | 목소리 |
+|--------|--------|
+| 문제 텍스트 | 여성 `ko-KR-SunHiNeural` |
+| 선택지 A, C, E | 남성 `ko-KR-InJoonNeural` |
+| 선택지 B, D | 여성 `ko-KR-SunHiNeural` |
+| 피드백 (정답/오답 + 해설) | 남성 `ko-KR-InJoonNeural` |
+| 안내 문구 ("A 선택", "다음 선택", "다음 문제" 등) | 여성 `ko-KR-SunHiNeural` |
+
+**캐시 전략**:
+| 콘텐츠 | 캐시 키 | 정책 |
+|--------|---------|------|
+| 문제/선택지 텍스트 | `{exam_id}/tts/q_{id}_{voice}_{lang}.mp3` | 영구 캐시 |
+| 고정 안내 문구 | `tts/phrase_{name}.mp3` | 영구 캐시 (사전 생성) |
+| 피드백 해설 | `{exam_id}/tts/exp_{id}_{lang}.mp3` | 영구 캐시 |
+
+**사전 생성 고정 문구** (`scripts/prefetch_tts.py`):
+- 여성: "A 선택", "B 선택", "C 선택", "D 선택", "E 선택", "모르겠어요", "다음 선택", "다음 문제"
+- 남성: "정답입니다", "오답입니다. 정답은"
+
+### Wake Lock (화면 보호 방지)
+
+```javascript
+// 터치 모드 진입 시
+const wakeLock = await navigator.wakeLock.request('screen');
+// 터치 모드 종료 시
+await wakeLock.release();
+```
+Android Chrome, iOS Safari 16.4+ 지원.
+
+### 터치 입력 상태 머신
+
+**탭 판별**: 첫 탭 후 800ms 타임아웃 → 추가 탭 누적 → 최종 횟수 결정  
+**스와이프 판별**: touchstart → touchend X 이동 > 80px (왼쪽) → 취소
+
+| 상태 | 탭 1회 | 탭 2회 | 탭 N회 | 왼쪽 스와이프 | 길게 누르기(1.5초) |
+|------|--------|--------|--------|--------------|-------------------|
+| `TTS_READING` | 현재 문장 스킵 | 현재 문장 다시 읽기 | — | — | — |
+| `WAITING_ANSWER` (MC) | A 선택·제출 | B 선택·제출 | N번째 선택·제출 | 취소(재입력) | 모르겠어요·제출 |
+| `WAITING_ANSWER` (MR) | 첫 선택지 추가 | — | N번째 선택지 추가 | 직전 선택 취소 | 선택 완료·제출 |
+| `MR_SELECTING` | 다음 선택지 추가 | — | N번째 선택지 추가 | 직전 선택 취소 | 선택 완료·제출 |
+| `FEEDBACK_READING` | 스킵 | 다시 읽기 | — | — | — |
+| `FEEDBACK_DONE` | 다음 문제 | — | — | — | — |
+
+**MR 흐름 예시** (2개 선택 문제):
+```
+탭 2회 → "B 선택. 다음 선택." (여성) → MR_SELECTING 상태
+탭 4회 → "D 선택. B, D. 완료하려면 길게 누르세요." (여성)
+길게 누르기 → 제출
+```
+
+**MR 중복 선택**: 무시 (이미 선택된 것 재선택 시 아무 동작 없음)
+
+### UI 구조
+
+- **진입**: 퀴즈 화면 상단 이어폰 아이콘 버튼
+- **오버레이**: 화면 전체 반투명 레이어 (기존 클릭 인터페이스 모두 차단)
+- **상단 좌측**: X 버튼 (항상 활성화, 터치 모드 종료)
+- **화면 중앙**: 현재 상태 텍스트 ("읽는 중...", "탭하여 선택", "A, D 선택됨" 등)
+- 팔로업 질문: 터치 모드에서 비활성화 (STT 단계에서 구현)
+
+### 새로 필요한 API
+
+```
+GET  /api/tts?text=...&voice=SunHi&cache_key=...  → { url: "s3-presigned..." }
+```
+
+### 구현 단계
+
+| 단계 | 작업 |
+|------|------|
+| 1 | `edge-tts` 의존성 추가 + `/api/tts` 엔드포인트 (S3 캐시) |
+| 2 | 기존 `window.speechSynthesis` → `<audio>` 태그 교체 (일반 TTS 버튼) |
+| 3 | `scripts/prefetch_tts.py` — 고정 안내 문구 사전 생성 |
+| 4 | 터치 모드 오버레이 UI + Wake Lock + 상태 머신 (JS) |
+| 5 | 문제/선택지/피드백 TTS 자동 재생 연결 |
+| 6 | 탭 카운팅 → 선택지 매핑 → HTMX 제출 연결 |
+| 7 | 피드백 TTS (정답/오답+해설) → FEEDBACK_DONE → 다음 문제 |
+
+### 환경 변수 추가 필요
+
+```
+GROQ_API_KEY=...          # STT fallback용
+TTS_VOICE_KO=ko-KR-SunHiNeural
+TTS_VOICE_EN=en-US-AriaNeural
+TTS_S3_PREFIX=tts/        # s3://abuddy-data/tts/
+```
 
 ---
 

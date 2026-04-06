@@ -1,3 +1,10 @@
+<!-- 터치 모드 데이터 -->
+<div id="touch-data" class="hidden"
+     data-type="question"
+     data-mr="{{ 'true' if question.question_type.value == 'multiple_response' else 'false' }}"
+     data-num-correct="{{ question.num_correct }}">
+</div>
+
 <!-- 문제 카드 -->
 <div class="space-y-5">
 
@@ -42,7 +49,7 @@
   </form>
 
   <!-- TTS 컨트롤 -->
-  <div class="flex items-center gap-3">
+  <div class="flex items-center gap-3 flex-wrap">
     <label class="flex items-center gap-1.5 text-sm text-gray-400 cursor-pointer select-none">
       <input type="checkbox" id="sentence-mode" class="accent-orange-500 w-4 h-4"
              onchange="localStorage.setItem('tts-sentence-mode', this.checked)">
@@ -56,6 +63,17 @@
         <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd"/>
       </svg>
       <span id="tts-label">읽기</span>
+    </button>
+    <!-- 터치 모드 버튼 -->
+    <button type="button"
+            onclick="window.touchMode?.enter()"
+            class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-orange-500 border border-gray-200 hover:border-orange-300 rounded-full px-3 py-1.5 transition-colors"
+            title="터치 모드 (화면 안 보고 풀기)">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+      </svg>
+      터치 모드
     </button>
   </div>
 
@@ -146,38 +164,43 @@
   if (cb) cb.checked = localStorage.getItem('tts-sentence-mode') === 'true';
 })();
 
-const TTS_LANG = '{{ "ko-KR" if lang == "ko" and question.question_text_ko else "en-US" }}';
+const TTS_USE_KO = {{ 'true' if lang == 'ko' and question.question_text_ko else 'false' }};
 
-const tts = (function() {
-  let _sentences = [];
+// 목소리 배정:
+//   문제 텍스트 → ko-female
+//   선택지 A,C,E(index 0,2,4) → ko-male
+//   선택지 B,D(index 1,3) → ko-female
+//   en: female/male 동일 패턴
+function _optionVoice(index) {
+  const lang = TTS_USE_KO ? 'ko' : 'en';
+  return index % 2 === 0 ? `${lang}-male` : `${lang}-female`;
+}
+const _questionVoice = TTS_USE_KO ? 'ko-female' : 'en-female';
+
+// 세그먼트: { text, voice }
+function _buildSegments() {
+  const qText = document.getElementById('question-text')?.textContent?.trim() || '';
+  const optLabels = ['A','B','C','D','E','F'];
+  const optEls = document.querySelectorAll('#options-list label span');
+  const segments = [];
+
+  if (qText) segments.push({ text: qText, voice: _questionVoice });
+
+  Array.from(optEls).forEach((el, i) => {
+    const letter = optLabels[i] || String(i+1);
+    // el.textContent includes the <b>A.</b> prefix — strip it to avoid "A. A. ..."
+    const optText = el.textContent.trim().replace(/^[A-F]\.\s*/, '');
+    if (optText) segments.push({ text: `${letter}. ${optText}`, voice: _optionVoice(i) });
+  });
+  return segments;
+}
+
+// edge-tts audio 플레이어 (window.tts로 전역 노출)
+window.tts = (function() {
+  let _segments = [];
   let _idx = 0;
   let _paused = false;
-
-  function _splitSentences(text) {
-    // 한국어: 마침표/느낌표/물음표 + 줄바꿈 기준으로 분리
-    const raw = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
-    const minLen = TTS_LANG === 'ko-KR' ? 10 : 20;
-    const result = [];
-    let buf = '';
-    for (const s of raw) {
-      buf += (buf ? ' ' : '') + s.trim();
-      if (buf.length > minLen) { result.push(buf); buf = ''; }
-    }
-    if (buf) result.push(buf);
-    return result.filter(s => s.trim().length > 0);
-  }
-
-  function _buildSentences() {
-    const qText = document.getElementById('question-text')?.textContent?.trim() || '';
-    const optLabels = ['A','B','C','D','E','F'];
-    const optEls = document.querySelectorAll('#options-list label span');
-    const qSentences = _splitSentences(qText);
-    const optSentences = Array.from(optEls).map((el, i) => {
-      const letter = optLabels[i] || String(i+1);
-      return `Option ${letter}: ${el.textContent.trim()}`;
-    });
-    return [...qSentences, ...optSentences];
-  }
+  let _audio = null;
 
   function _setBtn(label, active) {
     const btn = document.getElementById('tts-btn');
@@ -204,8 +227,8 @@ const tts = (function() {
   }
 
   function _stop() {
-    window.speechSynthesis.cancel();
-    _sentences = [];
+    if (_audio) { _audio.pause(); _audio = null; }
+    _segments = [];
     _idx = 0;
     _paused = false;
     _setBtn('읽기', false);
@@ -213,50 +236,78 @@ const tts = (function() {
     _showContinue(false);
   }
 
-  function _speakOne() {
-    if (_idx >= _sentences.length) { _stop(); return; }
+  async function _playOne() {
+    if (_idx >= _segments.length) { _stop(); return; }
 
     const sentenceMode = document.getElementById('sentence-mode')?.checked;
-    const text = _sentences[_idx];
-    _showCurrent(text, _idx, _sentences.length);
+    const { text, voice } = _segments[_idx];
+    _showCurrent(text, _idx, _segments.length);
 
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = TTS_LANG;
-    u.rate = TTS_LANG === 'ko-KR' ? 0.95 : 0.9;
+    try {
+      const res = await fetch(`/api/tts?${new URLSearchParams({ text, voice })}`);
+      if (!res.ok) throw new Error('TTS API error');
+      const { url } = await res.json();
 
-    u.onend = () => {
-      _idx++;
-      if (_idx >= _sentences.length) {
-        _stop();
-      } else if (sentenceMode) {
-        _paused = true;
-        _setBtn('정지', true);
-        _showContinue(true);
-      } else {
-        _speakOne();
-      }
-    };
-    u.onerror = () => _stop();
-    window.speechSynthesis.speak(u);
+      _audio = new Audio(url);
+      _audio.onended = () => {
+        _idx++;
+        if (_idx >= _segments.length) {
+          _stop();
+          // 터치 모드에 완료 알림
+          if (window.touchMode) window.touchMode.onTtsEnd();
+        } else if (sentenceMode) {
+          _paused = true;
+          _setBtn('정지', true);
+          _showContinue(true);
+        } else {
+          _playOne();
+        }
+      };
+      _audio.onerror = () => { _stop(); if (window.touchMode) window.touchMode.onTtsEnd(); };
+      await _audio.play();
+    } catch (e) {
+      console.error('TTS error:', e);
+      _stop();
+      if (window.touchMode) window.touchMode.onTtsEnd();
+    }
   }
 
   return {
     toggle() {
-      if (!window.speechSynthesis) { alert('이 브라우저는 음성 읽기를 지원하지 않습니다.'); return; }
-      if (window.speechSynthesis.speaking || _paused) { _stop(); return; }
-      _sentences = _buildSentences();
+      if (_audio || _paused) { _stop(); return; }
+      _segments = _buildSegments();
       _idx = 0;
       _paused = false;
       _setBtn('정지', true);
       _showContinue(false);
-      _speakOne();
+      _playOne();
     },
     next() {
       if (!_paused) return;
       _paused = false;
       _showContinue(false);
-      _speakOne();
-    }
+      _playOne();
+    },
+    // 터치 모드에서 외부 호출용
+    playSegments(segs) {
+      _stop();
+      _segments = segs;
+      _idx = 0;
+      _paused = false;
+      _playOne();
+    },
+    skip() {
+      if (_audio) { _audio.pause(); _audio = null; }
+      _idx++;
+      _playOne();
+    },
+    replay() {
+      if (_audio) { _audio.pause(); _audio = null; }
+      _playOne();
+    },
+    stop: _stop,
+    get isPlaying() { return !!_audio && !_audio.paused; },
+    get isPaused() { return _paused; },
   };
 })();
 </script>

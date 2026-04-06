@@ -31,6 +31,11 @@ uv run scripts/skilljar_to_docs.py --exam CCA           # 전체 실행
 uv run scripts/skilljar_to_docs.py --exam CCA --dry-run # 매칭 확인만
 uv run scripts/skilljar_to_docs.py --exam CCA --force   # 전체 재생성
 
+# edge-tts S3 사전 캐시 생성
+uv run scripts/precache_tts.py --exam CCA --dry-run   # 캐시 미스 목록만 확인
+uv run scripts/precache_tts.py --exam CCA             # 실제 생성 (0.5초 간격)
+uv run scripts/precache_tts.py                        # 전체 시험
+
 # 문제 한글 번역 (1회성, Bedrock Sonnet 사용)
 uv run scripts/translate_questions.py --exam CCA --limit 10  # 테스트 (10개)
 uv run scripts/translate_questions.py --exam CCA             # 전체 번역

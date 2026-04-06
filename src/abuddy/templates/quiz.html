@@ -5,4 +5,415 @@
 <div id="quiz-area">
   {% include "partials/question.html" %}
 </div>
+
+<!-- 터치 모드 오버레이 -->
+<div id="touch-overlay"
+     class="hidden fixed inset-0 z-50 bg-black/50 flex flex-col select-none touch-none">
+
+  <!-- 상단: X 버튼 -->
+  <div class="p-4 flex justify-start shrink-0">
+    <button id="touch-exit-btn"
+            class="w-11 h-11 bg-white rounded-full flex items-center justify-center text-gray-700 text-lg shadow-lg active:scale-95">
+      ✕
+    </button>
+  </div>
+
+  <!-- 중앙: 상태 표시 -->
+  <div class="flex-1 flex flex-col items-center justify-center px-8 gap-4">
+    <div id="touch-status"
+         class="text-white text-2xl font-semibold text-center leading-snug"></div>
+    <div id="touch-hint"
+         class="text-white/60 text-sm text-center leading-relaxed"></div>
+  </div>
+
+  <!-- 하단: 선택 현황 -->
+  <div class="shrink-0 pb-10 text-center">
+    <div id="touch-selected" class="text-white/80 text-lg font-medium"></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// 터치 모드 상태 머신
+// ─────────────────────────────────────────────
+window.touchMode = (function() {
+  // 상태
+  const S = {
+    IDLE: 'IDLE',
+    TTS_READING: 'TTS_READING',
+    WAITING_ANSWER: 'WAITING_ANSWER',
+    MR_SELECTING: 'MR_SELECTING',
+    SUBMITTING: 'SUBMITTING',
+    FEEDBACK_READING: 'FEEDBACK_READING',
+    FEEDBACK_DONE: 'FEEDBACK_DONE',
+  };
+
+  let state = S.IDLE;
+  let wakeLock = null;
+  let isMR = false;
+  let numCorrect = 0;
+  let selectedIndices = [];
+  const OPT_LABELS = ['A','B','C','D','E'];
+
+  // ── 오버레이 DOM
+  const overlay  = document.getElementById('touch-overlay');
+  const exitBtn  = document.getElementById('touch-exit-btn');
+  const statusEl = document.getElementById('touch-status');
+  const hintEl   = document.getElementById('touch-hint');
+  const selectedEl = document.getElementById('touch-selected');
+
+  function _setUI(status, hint, selected='') {
+    statusEl.textContent = status;
+    hintEl.textContent   = hint;
+    selectedEl.textContent = selected;
+  }
+
+  function _setState(s) {
+    state = s;
+    switch (s) {
+      case S.TTS_READING: {
+        const _sm = document.getElementById('sentence-mode')?.checked;
+        _setUI('읽는 중...', _sm ? '1번 탭: 다음 문장   2번 탭: 다시 읽기' : '1번 탭: 스킵   2번 탭: 다시 읽기');
+        break;
+      }
+      case S.WAITING_ANSWER:
+        if (isMR) {
+          _setUI('탭하여 선택', `${numCorrect}개 선택 후 길게 누르기`, _selectedText());
+        } else {
+          _setUI('탭하여 선택', 'A=1번  B=2번  C=3번  D=4번   길게: 모르겠어요');
+        }
+        break;
+      case S.MR_SELECTING:
+        _setUI('추가 선택', '다음 선택지 탭   완료하려면 길게 누르기', _selectedText());
+        break;
+      case S.SUBMITTING:
+        _setUI('제출 중...', '');
+        break;
+      case S.FEEDBACK_READING:
+        _setUI('해설 읽는 중...', '1번 탭: 스킵   2번 탭: 다시 읽기');
+        break;
+      case S.FEEDBACK_DONE:
+        _setUI('완료', '탭하여 다음 문제');
+        break;
+    }
+  }
+
+  function _selectedText() {
+    if (selectedIndices.length === 0) return '';
+    return '선택: ' + selectedIndices.map(i => OPT_LABELS[i]).join(', ');
+  }
+
+  // ── Wake Lock
+  async function _acquireWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+  function _releaseWakeLock() {
+    if (wakeLock) { wakeLock.release(); wakeLock = null; }
+  }
+
+  // ── TTS 단일 문구 재생 (안내 문구용, ko-female)
+  async function _playPhrase(text) {
+    try {
+      const res = await fetch(`/api/tts?${new URLSearchParams({ text, voice: 'ko-female' })}`);
+      const { url } = await res.json();
+      return new Promise((resolve) => {
+        const a = new Audio(url);
+        a.onended = resolve;
+        a.onerror = resolve;
+        a.play().catch(resolve);
+      });
+    } catch (e) {
+      // TTS 실패해도 상태 머신이 멈추지 않도록 조용히 넘김
+      console.warn('_playPhrase error:', e);
+    }
+  }
+
+  // ── 문제 로드 후 TTS 시작
+  function onQuestionLoad() {
+    if (state === S.IDLE) return;
+    const data = document.getElementById('touch-data');
+    isMR = data?.dataset.mr === 'true';
+    numCorrect = parseInt(data?.dataset.numCorrect || '1');
+    selectedIndices = [];
+    _setState(S.TTS_READING);
+    // tts 객체는 question.html 파셜에서 정의됨
+    if (window.tts) window.tts.toggle();
+  }
+
+  // ── 피드백 로드 후 TTS 시작
+  async function onFeedbackLoad() {
+    if (state === S.IDLE) return;
+    const data = document.getElementById('touch-data');
+    if (!data || data.dataset.type !== 'feedback') return;
+
+    const isCorrect   = data.dataset.correct === 'true';
+    const explanation = data.dataset.explanation || '';
+    const correctLabel = data.dataset.correctLabel || '';
+
+    _setState(S.FEEDBACK_READING);
+
+    const segments = [];
+    if (isCorrect) {
+      segments.push({ text: '정답입니다.', voice: 'ko-male' });
+      if (correctLabel) segments.push({ text: correctLabel, voice: 'ko-female' });
+    } else {
+      segments.push({ text: '오답입니다.', voice: 'ko-male' });
+      if (correctLabel) segments.push({ text: `정답은 ${correctLabel}입니다.`, voice: 'ko-male' });
+    }
+    if (explanation) segments.push({ text: explanation, voice: 'ko-male' });
+
+    if (window.tts) window.tts.playSegments(segments);
+  }
+
+  // ── TTS 종료 콜백 (tts 객체에서 호출)
+  function onTtsEnd() {
+    if (state === S.TTS_READING) {
+      _setState(S.WAITING_ANSWER);
+    } else if (state === S.FEEDBACK_READING) {
+      _setState(S.FEEDBACK_DONE);
+    }
+  }
+
+  // ── 답 제출
+  async function _submitAnswer(indices) {
+    const form = document.querySelector('#quiz-area form');
+    if (!form) return;
+
+    // 모든 input 초기화
+    form.querySelectorAll('input[name="selected"]').forEach(inp => { inp.checked = false; });
+
+    // 선택 적용
+    if (indices.length === 1 && indices[0] === -1) {
+      // 모르겠어요
+      const idk = form.querySelector('input[value="-1"]');
+      if (idk) idk.checked = true;
+    } else {
+      indices.forEach(i => {
+        const inp = form.querySelector(`input[value="${i}"]`);
+        if (inp) inp.checked = true;
+      });
+    }
+
+    // HTMX 제출
+    htmx.trigger(form, 'submit');
+  }
+
+  // ── 탭 카운팅
+  let _tapCount = 0;
+  let _tapTimer = null;
+  const TAP_TIMEOUT = 800;
+
+  function _onTap() {
+    _tapCount++;
+    clearTimeout(_tapTimer);
+    _tapTimer = setTimeout(() => {
+      const n = _tapCount;
+      _tapCount = 0;
+      _handleTaps(n);
+    }, TAP_TIMEOUT);
+  }
+
+  async function _handleTaps(n) {
+    if (state === S.IDLE || state === S.SUBMITTING) return;
+    if (state === S.TTS_READING) {
+      const sentenceMode = document.getElementById('sentence-mode')?.checked;
+      if (sentenceMode) {
+        // 한 문장씩 모드: skip 없음. 1탭 = 다음 문장, 2탭 = 다시 읽기
+        if (n === 1) {
+          if (window.tts?.isPaused) {
+            window.tts?.next();
+          } else {
+            window.tts?.skip(); // 재생 중이면 현재 문장 건너뜀
+          }
+        } else if (n === 2) {
+          window.tts?.replay();
+        }
+      } else {
+        if (n === 1) {
+          await _playPhrase('스킵');
+          window.tts?.skip();
+        } else if (n === 2) {
+          await _playPhrase('다시 읽기');
+          window.tts?.replay();
+        }
+      }
+
+    } else if (state === S.WAITING_ANSWER) {
+      const idx = n - 1; // 탭 1회 → index 0 (A)
+      if (idx < 0 || idx > 4) return;
+
+      const label = OPT_LABELS[idx] || String(idx+1);
+
+      if (isMR) {
+        selectedIndices.push(idx);
+        await _playPhrase(`${label} 선택`);
+        if (selectedIndices.length < numCorrect) {
+          await _playPhrase('다음 선택');
+          _setState(S.MR_SELECTING);
+        } else {
+          _setState(S.SUBMITTING);
+          await _submitAnswer(selectedIndices);
+        }
+      } else {
+        _setState(S.SUBMITTING);
+        await _playPhrase(`${label} 선택`);
+        await _submitAnswer([idx]);
+      }
+
+    } else if (state === S.MR_SELECTING) {
+      const idx = n - 1;
+      if (idx < 0 || idx > 4) return;
+      // 중복 무시
+      if (selectedIndices.includes(idx)) return;
+
+      const label = OPT_LABELS[idx];
+      selectedIndices.push(idx);
+      _setState(S.MR_SELECTING); // UI 갱신
+
+      await _playPhrase(`${label} 선택`);
+
+      if (selectedIndices.length >= numCorrect) {
+        _setState(S.SUBMITTING);
+        await _submitAnswer(selectedIndices);
+      } else {
+        await _playPhrase('다음 선택');
+      }
+
+    } else if (state === S.FEEDBACK_READING) {
+      if (n === 1) {
+        window.tts?.skip();
+      } else if (n === 2) {
+        window.tts?.replay();
+      }
+
+    } else if (state === S.FEEDBACK_DONE) {
+      // 다음 문제
+      window.location.href = '/quiz';
+    }
+  }
+
+  // ── 길게 누르기 (MR 제출 / 모르겠어요)
+  async function _handleLongPress() {
+    if (state === S.WAITING_ANSWER && !isMR) {
+      _setState(S.SUBMITTING);
+      await _playPhrase('모르겠어요');
+      await _submitAnswer([-1]);
+
+    } else if (state === S.WAITING_ANSWER && isMR) {
+      if (selectedIndices.length === 0) {
+        _setState(S.SUBMITTING);
+        await _playPhrase('모르겠어요');
+        await _submitAnswer([-1]);
+      }
+
+    } else if (state === S.MR_SELECTING) {
+      _setState(S.SUBMITTING);
+      const labelStr = selectedIndices.map(i => OPT_LABELS[i]).join(', ');
+      await _playPhrase(`${labelStr} 제출합니다`);
+      await _submitAnswer(selectedIndices);
+    }
+  }
+
+  // ── 왼쪽 스와이프 (취소)
+  async function _handleSwipeLeft() {
+    if (state === S.IDLE || state === S.SUBMITTING) return;
+    if (state === S.MR_SELECTING && selectedIndices.length > 0) {
+      const removed = OPT_LABELS[selectedIndices.pop()];
+      _setState(S.MR_SELECTING);
+      await _playPhrase(`${removed} 취소`);
+    } else if (state === S.WAITING_ANSWER) {
+      // 재읽기
+      await _playPhrase('다시 읽습니다');
+      onQuestionLoad();
+    }
+  }
+
+  // ── 터치 이벤트 바인딩
+  let _touchStartX = 0, _touchStartY = 0, _touchStartTime = 0;
+  let _longPressTimer = null;
+  const LONG_PRESS_MS = 1500;
+  const SWIPE_MIN_PX = 80;
+
+  overlay.addEventListener('touchstart', (e) => {
+    if (e.target === exitBtn || exitBtn.contains(e.target)) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    _touchStartX = t.clientX;
+    _touchStartY = t.clientY;
+    _touchStartTime = Date.now();
+    _longPressTimer = setTimeout(() => {
+      _longPressTimer = null;
+      _handleLongPress();
+    }, LONG_PRESS_MS);
+  }, { passive: false });
+
+  overlay.addEventListener('touchend', (e) => {
+    if (e.target === exitBtn || exitBtn.contains(e.target)) return;
+    e.preventDefault();
+    if (_longPressTimer) {
+      clearTimeout(_longPressTimer);
+      _longPressTimer = null;
+    } else {
+      return; // 길게 눌렀으면 탭 처리 안 함
+    }
+
+    const t = e.changedTouches[0];
+    const dx = t.clientX - _touchStartX;
+    const dy = t.clientY - _touchStartY;
+    const dt = Date.now() - _touchStartTime;
+
+    // 스와이프 판별 (왼쪽으로 80px 이상, 수직 이동은 절반 이하)
+    if (dx < -SWIPE_MIN_PX && Math.abs(dy) < Math.abs(dx) * 0.6) {
+      _handleSwipeLeft();
+      return;
+    }
+
+    // 탭 (300ms 이내, 이동 작음)
+    if (dt < 300 && Math.abs(dx) < 20 && Math.abs(dy) < 20) {
+      _onTap();
+    }
+  }, { passive: false });
+
+  // X 버튼
+  exitBtn.addEventListener('click', () => exit());
+
+  // ── 진입 / 종료
+  async function enter() {
+    overlay.classList.remove('hidden');
+    await _acquireWakeLock();
+    _setState(S.TTS_READING);
+    onQuestionLoad();
+  }
+
+  function exit() {
+    if (window.tts) window.tts.stop();
+    _releaseWakeLock();
+    overlay.classList.add('hidden');
+    state = S.IDLE;
+    selectedIndices = [];
+    _tapCount = 0;
+    clearTimeout(_tapTimer);
+    clearTimeout(_longPressTimer);
+  }
+
+  // ── HTMX swap 감지 → 문제/피드백 구분
+  document.body.addEventListener('htmx:afterSwap', (e) => {
+    if (e.detail.target?.id !== 'quiz-area') return;
+    if (state === S.IDLE) return;
+
+    const data = document.getElementById('touch-data');
+    if (!data) return;
+
+    if (data.dataset.type === 'question') {
+      selectedIndices = [];
+      onQuestionLoad();
+    } else if (data.dataset.type === 'feedback') {
+      onFeedbackLoad();
+    }
+  });
+
+  return { enter, exit, onTtsEnd, onQuestionLoad, onFeedbackLoad };
+})();
+</script>
 {% endblock %}

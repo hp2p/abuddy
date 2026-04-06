@@ -1,3 +1,15 @@
+<!-- 터치 모드 데이터 -->
+{% set show_ko = lang == 'ko' and question.question_text_ko %}
+{% set correct_options = question.options_ko if (show_ko and question.options_ko) else question.options %}
+{% set correct_label_parts = [] %}
+{% for i in question.correct_indices %}{% set _ = correct_label_parts.append(labels[i] + '. ' + correct_options[i]) %}{% endfor %}
+<div id="touch-data" class="hidden"
+     data-type="feedback"
+     data-correct="{{ 'true' if is_correct else 'false' }}"
+     data-correct-label="{{ correct_label_parts | join(', ') | e }}"
+     data-explanation="{{ (question.explanation_ko if (show_ko and question.explanation_ko) else question.explanation) | e }}">
+</div>
+
 <!-- 결과 피드백 -->
 <div class="space-y-4">
 

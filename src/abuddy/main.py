@@ -10,6 +10,7 @@ from loguru import logger
 
 from abuddy.routers.auth import router as auth_router
 from abuddy.routers.quiz import router as quiz_router
+from abuddy.routers.tts import router as tts_router
 from abuddy.services.auth import NotAuthenticated
 
 # loguru 설정
@@ -24,6 +25,7 @@ app = FastAPI(title="ABuddy — AI Cert Study", version="0.1.0")
 app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 app.include_router(auth_router)
 app.include_router(quiz_router)
+app.include_router(tts_router)
 
 
 @app.exception_handler(NotAuthenticated)

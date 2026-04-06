@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     # 예: "aip-c01" | "CCA"
     active_exam: str = "CCA"
 
+    # TTS (edge-tts)
+    tts_voice_ko_female: str = "ko-KR-SunHiNeural"
+    tts_voice_ko_male: str = "ko-KR-InJoonNeural"
+    tts_voice_en_female: str = "en-US-AriaNeural"
+    tts_voice_en_male: str = "en-US-GuyNeural"
+    tts_s3_prefix: str = "tts/"
+
     app_host: str = "0.0.0.0"
     app_port: int = 8002
 
