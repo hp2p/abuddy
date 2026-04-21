@@ -334,3 +334,7 @@ JSON 배열에 항목을 추가/수정하면 재배포 후 반영됩니다.
 uv run ruff check src/
 uv run ruff format src/
 ```
+
+### 참고
+* s3 cache 된 갯수
+  - aws s3 ls s3://abuddy-data/tts/ --recursive | Measure-Object -Line

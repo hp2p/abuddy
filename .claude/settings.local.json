@@ -19,7 +19,8 @@
       "WebFetch(domain:www.the-ai-corner.com)",
       "WebFetch(domain:www.lowcode.agency)",
       "WebFetch(domain:flashgenius.net)",
-      "WebFetch(domain:www.claudedirectory.org)"
+      "WebFetch(domain:www.claudedirectory.org)",
+      "Bash(uv sync *)"
     ]
   }
 }

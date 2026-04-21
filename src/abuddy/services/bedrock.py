@@ -1,4 +1,4 @@
-"""Amazon Bedrock Converse API 래퍼"""
+"""Amazon Bedrock Converse API 래퍼 + Anthropic SDK (tool use / prompt caching)"""
 import boto3
 import orjson
 from botocore.config import Config
@@ -21,6 +21,17 @@ def _converse(model_id: str, system: str, user: str, max_tokens: int = 2048, rea
     resp = _client(read_timeout).converse(
         modelId=model_id,
         system=[{"text": system}],
+        messages=[{"role": "user", "content": [{"text": user}]}],
+        inferenceConfig={"maxTokens": max_tokens, "temperature": 0.3},
+    )
+    return resp["output"]["message"]["content"][0]["text"]
+
+
+def _converse_cached(model_id: str, system: str, user: str, max_tokens: int = 2048) -> str:
+    """시스템 프롬프트에 cachePoint를 추가해 Bedrock prompt caching 적용."""
+    resp = _client().converse(
+        modelId=model_id,
+        system=[{"text": system}, {"cachePoint": {"type": "default"}}],
         messages=[{"role": "user", "content": [{"text": user}]}],
         inferenceConfig={"maxTokens": max_tokens, "temperature": 0.3},
     )
@@ -393,7 +404,154 @@ User's follow-up question: {user_question}
 Answer the follow-up question clearly."""
     eid = exam_id or settings.active_exam
     system = _FOLLOWUP_SYSTEM_CCA if eid == "CCA" else _FOLLOWUP_SYSTEM_AIP
-    return _converse(settings.bedrock_model_id, system, prompt, max_tokens=512)
+    return _converse_cached(settings.bedrock_model_id, system, prompt, max_tokens=512)
+
+
+# ──────────────────────────────────────────────
+# 팔로업 질문 답변 — tool use + prompt caching (Bedrock Converse)
+# ──────────────────────────────────────────────
+
+_FOLLOWUP_TOOL_CONFIG = {
+    "tools": [
+        {
+            "toolSpec": {
+                "name": "search_concept_docs",
+                "description": (
+                    "Retrieve detailed study material for a specific concept. "
+                    "Call this before answering to ground your response in authoritative reference content."
+                ),
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "concept_id": {
+                                "type": "string",
+                                "description": "The concept ID to look up (e.g. 'd1-prompt-caching')",
+                            }
+                        },
+                        "required": ["concept_id"],
+                    }
+                },
+            }
+        },
+        {
+            "toolSpec": {
+                "name": "get_related_concepts",
+                "description": (
+                    "Get concepts related to a given concept from the knowledge graph. "
+                    "Use this to surface prerequisite or adjacent knowledge when it would help the learner."
+                ),
+                "inputSchema": {
+                    "json": {
+                        "type": "object",
+                        "properties": {
+                            "concept_id": {
+                                "type": "string",
+                                "description": "The concept ID whose related concepts to retrieve",
+                            }
+                        },
+                        "required": ["concept_id"],
+                    }
+                },
+            }
+        },
+    ]
+}
+
+_MAX_TOOL_ROUNDS = 5
+
+
+def _execute_tool(tool_name: str, tool_input: dict, concept_id: str, exam_id: str) -> str:
+    from abuddy.services import concept_docs
+    from abuddy.services import concept_graph as cg
+
+    if tool_name == "search_concept_docs":
+        cid = tool_input.get("concept_id", concept_id)
+        content = concept_docs.load_doc_content(cid, exam_id)
+        return content or f"No documentation found for concept '{cid}'."
+
+    if tool_name == "get_related_concepts":
+        cid = tool_input.get("concept_id", concept_id)
+        related_ids = cg.get_related_concept_ids(cid, exam_id=exam_id)
+        lines = []
+        for rid in related_ids[:6]:
+            c = cg.get_concept(rid, exam_id)
+            if c:
+                lines.append(f"- {c.name}: {c.description}")
+        return "\n".join(lines) if lines else "No related concepts found."
+
+    return "Unknown tool."
+
+
+def answer_followup_with_tools(
+    concept_id: str,
+    concept_name: str,
+    question_text: str,
+    correct_answer_text: str,
+    user_question: str,
+    exam_id: str | None = None,
+) -> str:
+    """Bedrock Converse API로 팔로업 질문에 답변.
+
+    - Tool use: concept docs 검색 + 연관 개념 조회 (agentic loop)
+    - Prompt caching: 시스템 프롬프트 cachePoint로 반복 호출 비용 절감
+    """
+    eid = exam_id or settings.active_exam
+    system_text = _FOLLOWUP_SYSTEM_CCA if eid == "CCA" else _FOLLOWUP_SYSTEM_AIP
+
+    # cachePoint: 시스템 프롬프트를 캐시해 동일 exam 반복 호출 비용 절감
+    system = [{"text": system_text}, {"cachePoint": {"type": "default"}}]
+
+    user_prompt = (
+        f"Exam concept: {concept_name} (concept_id: {concept_id})\n"
+        f"Question that was asked: {question_text}\n"
+        f"Correct answer and explanation: {correct_answer_text}\n"
+        f"User's follow-up question: {user_question}\n\n"
+        "Use the available tools to look up reference material, then answer clearly."
+    )
+    messages: list[dict] = [{"role": "user", "content": [{"text": user_prompt}]}]
+    bedrock = _client()
+
+    for round_num in range(_MAX_TOOL_ROUNDS):
+        response = bedrock.converse(
+            modelId=settings.bedrock_model_id,
+            system=system,
+            messages=messages,
+            toolConfig=_FOLLOWUP_TOOL_CONFIG,
+            inferenceConfig={"maxTokens": 1024, "temperature": 0.3},
+        )
+        stop_reason = response["stopReason"]
+        logger.debug(f"[followup tool_use] round={round_num} stop_reason={stop_reason}")
+
+        if stop_reason != "tool_use":
+            for block in response["output"]["message"]["content"]:
+                if "text" in block:
+                    return block["text"]
+            return ""
+
+        # 어시스턴트 응답을 대화 이력에 추가
+        assistant_content = response["output"]["message"]["content"]
+        messages.append({"role": "assistant", "content": assistant_content})
+
+        # 도구 실행 후 결과를 다음 메시지로 전달
+        tool_results = []
+        for block in assistant_content:
+            if "toolUse" not in block:
+                continue
+            tool_use = block["toolUse"]
+            result = _execute_tool(tool_use["name"], tool_use["input"], concept_id, eid)
+            logger.debug(f"[followup tool_use] tool={tool_use['name']} result_len={len(result)}")
+            tool_results.append({
+                "toolResult": {
+                    "toolUseId": tool_use["toolUseId"],
+                    "content": [{"text": result}],
+                    "status": "success",
+                }
+            })
+        messages.append({"role": "user", "content": tool_results})
+
+    logger.warning("[followup tool_use] max rounds exceeded — falling back to cached converse")
+    return answer_followup(concept_name, question_text, correct_answer_text, user_question, exam_id)
 
 
 # ──────────────────────────────────────────────

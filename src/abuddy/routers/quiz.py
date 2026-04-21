@@ -18,8 +18,6 @@ from abuddy.services import quiz_engine as engine
 from abuddy.services.auth import NotAuthenticated, get_current_user, get_display_name
 from abuddy.services.concept_graph import get_concept, load_graph
 
-
-
 _CARDS_PATH = Path(__file__).parent.parent / "data" / "motivation_cards.json"
 MOTIVATION_CARDS: list[dict] = json.loads(_CARDS_PATH.read_text(encoding="utf-8"))
 
@@ -254,11 +252,13 @@ async def ask_followup(request: Request, question_id: str, user_question: str = 
     concept_name = concept.name if concept else question.concept_id
     correct_text = " / ".join(question.options[i] for i in question.correct_indices)
 
-    answer = bedrock.answer_followup(
+    answer = bedrock.answer_followup_with_tools(
+        concept_id=question.concept_id,
         concept_name=concept_name,
         question_text=question.question_text,
         correct_answer_text=correct_text + "\n" + question.explanation,
         user_question=user_question,
+        exam_id=question.exam_id,
     )
 
     uqdb.save_user_question(
